@@ -25,10 +25,7 @@ gen.randT <- function(nSim, modes, info = NA, seed = NA) {
     temp <- round(rtriangle(num, min, max, mode))
     return(temp)
   }
-  
-  # trims NA records
-  modes <- modes[!is.na(modes)]
-  
+    
   # default initializer
   mins <- ifelse((modes - 3) > 0, (modes - 3), 1)
   maxs <- ifelse((modes + 4) > (2 * modes), (modes + 2), (modes + 4))
@@ -41,6 +38,8 @@ gen.randT <- function(nSim, modes, info = NA, seed = NA) {
   for (i in 1:length(modes)) {
     if (!is.na(modes[i])) {
       rng[ ,i] <- rTriNums(nSim, mins[i], maxs[i], modes[i])
+    } else {
+      rng[ ,i] <- rep(0, nSim)
     }
   }
   

@@ -34,22 +34,22 @@ inv$methods(
   },
   iterate = function(time) {
     if (getOperating(time)) {
-      chk <- current[time] - actual[time]
+      chk <-  getCurrent(time) - getActual(time)
       if (chk < 0) chk <- 0
-      current[(time+1)] <<- chk
+      updCurrent(time, chk)
     } else {
-      current[(time+1)] <<- current[time]
+      updCurrent(time, getCurrent(time))
     }
   },
   receive = function(time, trans) {
-    setCurrent(time, trans$inbound(time))
+    updCurrent(time, trans$inbound(time))
   },
   order = function(time, trans, quant) {
     trans$setITVolume(time) # no matter what, update in transit volume
     
     if (getOrdering(time)) {
       # the next few lines find an estimated transit time
-      estTT <- rep(0, length = 50)
+      estTT <- vector("numeric", length = 50)
       for (i in 1:50) {
         estTT[i] <- sum(trans$randTrans())
       } 
@@ -60,7 +60,7 @@ inv$methods(
       setITorder(time, getPipeTgt(time) - trans$getITVolume(time))
       setDMDorder(time, (sum(getExpectedR(time, 7)) + sum(getErrorR(time, 7))))
       
-      order <- (ceiling((getITOrder(time) + getDMDorder(time)) / 18000)) * 18000
+      order <- (ceiling((getITorder(time) + getDMDorder(time)) / 18000)) * 18000
       if (order <= 0) order <- 0
       trans$outbound(time, order)
     }
@@ -101,10 +101,12 @@ inv$methods(
     return(error.sq[time])
   },
   getCurrent = function(time) {
-    return(current[(time + 1)])
+    return(current[time])
   },
-  setCurrent = function(time, vol) {
-    current[(time+1)] <<- current[(time+1)] + vol
+  updCurrent = function(time, vol) {
+    if (!is.na(getCurrent((time + 1)))) {
+      current[(time+1)] <<- (getCurrent((time + 1))) + vol
+    }
   },
   getExpectedR = function(time, range) {
     end <- ifelse((time + range) >= (length(expected)), (length(expected)), (time + range))
@@ -132,12 +134,11 @@ inv$methods(
   }
   )
 
-# difference between nWork (working days in a week)
-# totSim is the total days in the simulation
-### example
-# (sch <- gen.sched(5, 7, 10))
+
+# nOp the number of open days per week
+# totSim the number of days in the simulation experiment
 gen.sched <- function(nOp, totSim) {
-  wrk <- vector("logical", totSim)
+  wrk <- logical(length = totSim)
   for (i in 1:totSim) {
     if (i %% 7 < nOp) wrk[i] <- TRUE
     else  wrk[i] <- FALSE
@@ -152,19 +153,20 @@ gen.sched <- function(nOp, totSim) {
 #' @param nSim is a integer representation of the number of days in the simulation
 #' @param curr is a number for the first day's inventory
 #' @param expect is a vector of expected demand
-#' @param act is a vector of actual demand
+#' @param act is a vector with element 1 == mean of demand, element 2 == sd of demand
 #' @param opNdays is the nummber of days the factory works per week
 #' @param ordNdays is the number of days the factory places an order per week
+#' @param bias value for the expected demand bias, 0 corresponds to no bias, -1 is a consistent underestimate, 1 is a consistent overestimate
+#' 
 #' @keyword inventory initializer
 #' 
 #' @example
 #' test <- gen.inv()
-gen.inv <- function(nSim, nm, curr, expect, act, opNdays, ordNdays) {
+gen.inv <- function(nSim, nm, curr, act, opNdays, ordNdays, bias = 0) {
+  stopifnot(is.numeric(nSim) & length(nSim) == 1)
   stopifnot(is.character(nm))
   stopifnot(is.numeric(nSim) & length(nSim) == 1)
   stopifnot(is.numeric(curr) & length(curr) == 1)
-  stopifnot(is.numeric(expect) & length(expect) == 2)
-  stopifnot(is.numeric(act) & length(act) == 2)
   stopifnot(is.numeric(opNdays) & length(opNdays) == 1)
   stopifnot(is.numeric(ordNdays) & length(ordNdays) == 1)
   
@@ -173,36 +175,40 @@ gen.inv <- function(nSim, nm, curr, expect, act, opNdays, ordNdays) {
   ordNdays <- gen.sched(ordNdays, nSim)
   curr.inv <- c(curr, rep(0, length = (nSim - 1)))
   
-  a.dmd <- sqrt((rnorm(nSim, act[1], act[2]))^2)
-  e.dmd <- sqrt((rnorm(nSim, expect[1], expect[2]))^2)
+  a <- rnorm(nSim, 0, act[2]) # normally distributed errors ~N(0, sigma)
+  reset <- (1:nSim %% 90 == 0) # re-evaluate forecast every 60 days
   
-  a.dmd[!opNdays] <- 0
-  e.dmd[!opNdays] <- 0
+  if (bias == 0) e <- rnorm(nSim, 0, act[2])
+  else if (bias == -1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) * -1 
+  else if (bias == 1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) 
+  
+  a.dmd <- vector("numeric", nSim)
+  e.dmd <- vector("numeric", nSim)
+  a.dmd[1] <- a[1] + act[1]
+  e.dmd[1] <- a.dmd[1] # initialize the expected and actual random walk to the same value
+
+  for (i in 2:nSim) {
+    a.dmd[i] <- a.dmd[(i-1)] + a[i]
+
+    ### this re-evaluates the expected random walk to the actual at regular 60-day intervals
+    if (reset[i]) e.dmd[(i-1)] <- a.dmd[(i-1)] 
+    
+    # expected value random walk
+    e.dmd[i] <- e.dmd[(i-1)] + e[i]
+  }  
+  
+  for (i in 1:nSim) {
+    if (!opNdays[i]) {
+      a.dmd[i] <- 0
+      e.dmd[i] <- 0
+    }
+  }
   
   temp <- inv$new()
   temp$first(name, curr.inv, e.dmd, a.dmd, opNdays, ordNdays)
   
   return(temp)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
