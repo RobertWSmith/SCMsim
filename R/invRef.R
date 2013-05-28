@@ -9,7 +9,7 @@ inv <- setRefClass(
     actual = "numeric",
     expected = "numeric",
     error = "numeric",
-    error.sq = "numeric",
+    error.sum = "numeric",
     pipe.tgt = "numeric",
     ITorder = "numeric",
     DMDorder = "numeric",
@@ -20,12 +20,19 @@ inv <- setRefClass(
 
 inv$methods(
   first = function(nm, curr, expect, act, op, ord) {
+    err <- (act - expect)
+    err.sm <- numeric(length(err))
+    
+    for (i in 2:length(err)) {
+      err.sm[i] <- err[i-1] + err[i]
+    }
+    
     name <<- nm
     current <<- curr
     expected <<- expect
     actual <<- act
-    error <<- (act - expect)
-    error.sq <<- (act - expect)^2
+    error <<- err
+    error.sum <<- err.sm
     pipe.tgt <<- rep(0, length(curr))
     ITorder <<- rep(0, length(curr))
     DMDorder <<- rep(0, length(curr))
@@ -48,19 +55,20 @@ inv$methods(
     trans$setITVolume(time) # no matter what, update in transit volume
     
     if (getOrdering(time)) {
+      samples <- 50
       # the next few lines find an estimated transit time
-      estTT <- vector("numeric", length = 50)
-      for (i in 1:50) {
-        estTT[i] <- sum(trans$randTrans())
+      estTT <- matrix(0, nrow = samples, ncol = ncol(trans$transit.time))
+      for (i in 1:samples) {
+        estTT[i, ] <- trans$randTrans()
       } 
-      # qTT is the quantile supplied for transit time, mTT is the mean transit time
-      qTT <- ceiling(quantile(estTT, probs = quant))
+      # quant is the quantile supplied for transit time, 
+      qTT <- round(quantile(apply(estTT, 1, sum), probs = quant))
       
-      setPipeTgt(time, (mean(getExpectedR(time, qTT)) * qTT))
-      setITorder(time, getPipeTgt(time) - trans$getITVolume(time))
-      setDMDorder(time, (sum(getExpectedR(time, 7)) + sum(getErrorR(time, 7))))
+      setPipeTgt(time, (qTT * mean(expected)))
+      setITorder(time, (getPipeTgt(time) - trans$getITVolume(time)))
+      setDMDorder(time, (sum(getExpectedR((time), 7)) + sum(getErrorR(time, 7))))
       
-      order <- (ceiling((getITorder(time) + getDMDorder(time)) / 18000)) * 18000
+      order <- (ceiling((getITorder(time) + getDMDorder(time) - getCurrent(time)) / 18000)) * 18000
       if (order <= 0) order <- 0
       trans$outbound(time, order)
     }
@@ -87,18 +95,11 @@ inv$methods(
     ITorder[time] <<- vol
   },
   getErrorR = function(time, range) {
-    start <- ifelse((time - range) < 1, 1, (time - range))
+    start <- ifelse((time - range) < 1, 1, (time - range + 1))
     return(error[start:time])
   },
   getError = function(time) {
     return(error[time])
-  },
-  getErrorSqR = function(time, range) {
-    start <- ifelse((time - range) < 1, 1, (time - range))
-    return(error.sq[start:time])
-  },
-  getErrorSq = function(time) {
-    return(error.sq[time])
   },
   getCurrent = function(time) {
     return(current[time])
@@ -109,21 +110,21 @@ inv$methods(
     }
   },
   getExpectedR = function(time, range) {
-    end <- ifelse((time + range) >= (length(expected)), (length(expected)), (time + range))
-    return(expected[time:end])
+    end <- ifelse((time + range) >= (length(expected)), (length(expected)), (time + range - 1))
+    return(expected[(time):end])
   },
   getExpected = function(time) {
     return(expected[time])
   },
   getActualR = function(time, range) {
-    start <- ifelse((time - range) < 1, 1, (time - range))
+    start <- ifelse((time - range) < 1, 1, (time - range + 1))
     return(actual[start:time])
   },
   getActual = function(time) {
     return(actual[time])
   },
   getOperatingR = function(time, range) {
-    end <- ifelse((time + range) > (length(operating)), (length(operating)), (time + range))
+    end <- ifelse((time + range) > (length(operating)), (length(operating)), (time + range - 1))
     return(operating[time:end])
   },
   getOperating = function(time) {
@@ -174,35 +175,39 @@ gen.inv <- function(nSim, nm, curr, act, opNdays, ordNdays, bias = 0) {
   opNdays <- gen.sched(opNdays, nSim)
   ordNdays <- gen.sched(ordNdays, nSim)
   curr.inv <- c(curr, rep(0, length = (nSim - 1)))
-  
-  a <- rnorm(nSim, 0, act[2]) # normally distributed errors ~N(0, sigma)
-  reset <- (1:nSim %% 90 == 0) # re-evaluate forecast every 60 days
-  
-  if (bias == 0) e <- rnorm(nSim, 0, act[2])
-  else if (bias == -1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) * -1 
-  else if (bias == 1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) 
-  
-  a.dmd <- vector("numeric", nSim)
-  e.dmd <- vector("numeric", nSim)
-  a.dmd[1] <- a[1] + act[1]
-  e.dmd[1] <- a.dmd[1] # initialize the expected and actual random walk to the same value
-
-  for (i in 2:nSim) {
-    a.dmd[i] <- a.dmd[(i-1)] + a[i]
-
-    ### this re-evaluates the expected random walk to the actual at regular 60-day intervals
-    if (reset[i]) e.dmd[(i-1)] <- a.dmd[(i-1)] 
-    
-    # expected value random walk
-    e.dmd[i] <- e.dmd[(i-1)] + e[i]
-  }  
-  
-  for (i in 1:nSim) {
-    if (!opNdays[i]) {
-      a.dmd[i] <- 0
-      e.dmd[i] <- 0
-    }
-  }
+#   
+#   a <- rnorm(nSim, 0, act[2]) # normally distributed errors ~N(0, sigma)
+#   reset <- (1:nSim %% 45 == 0) # re-evaluate forecast every 60 days
+#   
+#   if (bias == 0) e <- rnorm(nSim, 0, act[2])
+#   else if (bias == -1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) * -1 
+#   else if (bias == 1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) 
+#   
+#   a.dmd <- vector("numeric", nSim)
+#   e.dmd <- vector("numeric", nSim)
+#   a.dmd[1] <- a[1] + act[1]
+#   e.dmd[1] <- a.dmd[1] # initialize the expected and actual random walk to the same value
+# 
+#   for (i in 2:nSim) {
+#     a.dmd[i] <- sqrt((a.dmd[(i-1)] + a[i])^2)
+# 
+#     ### this re-evaluates the expected random walk to the actual at regular 60-day intervals
+#     if (reset[i]) e.dmd[(i-1)] <- a.dmd[(i-1)] 
+#     
+#     # expected value random walk
+#     e.dmd[i] <- sqrt((e.dmd[(i-1)] + e[i])^2)
+#   }  
+#   
+#   for (i in 1:nSim) {
+#     if (!opNdays[i]) {
+#       a.dmd[i] <- 0
+#       e.dmd[i] <- 0
+#     }
+#   }
+#   
+  a.dmd <- abs(rnorm(nSim, act[1], act[2]))
+  e <- runif(nSim, 0.5, 1.5)
+  e.dmd <- a.dmd * e
   
   temp <- inv$new()
   temp$first(name, curr.inv, e.dmd, a.dmd, opNdays, ordNdays)

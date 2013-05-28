@@ -13,8 +13,8 @@ DATA <- read.csv("BUD1207.csv", colClasses = c(rep("character", 3), rep("numeric
 setwd("C:/Users/a421356/R-GitHub/SCMsim/Output")
 
 #### Name & Quantile ####
-name <- "test"
-q <- 0.95
+name <- "TEST"
+qnt <- 0.95
 
 #### Subsetting ####
 BMT.val <- as.matrix(DATA[((DATA[ ,1] == "Beaumont") & (DATA[ ,3] != "Lux Hub")), 4:13], rownames.force = FALSE)
@@ -25,7 +25,7 @@ LUX.nms <- as.matrix(LUX[1:3], rownames.force = FALSE)
 rm(list = c("LUX", "DATA"))
 
 #### Initialization ####
-dOpen <- 5
+dOpen <- 6
 dOrder <- 1
 nSim <- 1000
 BMT.inv <- vector("list", length = nrow(BMT.val))
@@ -43,16 +43,17 @@ for (row in 1:nrow(BMT.val)) {
 # gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA)
 lux.hub <- gen.hub(nSim, LUX.nms[,3], LUX.val[,9], LUX.val[,7:8], dOpen, dOrder, LUX.val[, 1:6])
 
-len <- length(BMT.inv)
-
 ####  SIMULATION LOOP  ####
+len <- length(BMT.inv)
 for (time in 1:nSim) {
   for (fac in 1:len) {
-    simulate(time, (BMT.inv[[fac]]), (BMT.trns[[fac]]), q)
+    simulate(time, (BMT.inv[[fac]]), (BMT.trns[[fac]]), qnt)
   }
-  simulate.hub(time, lux.hub, q)
+  simulate.hub(time, lux.hub, qnt)
 }
 
-saveData(BMT.inv, BMT.trns, lux.hub, name, quant)
+saveData(BMT.inv, BMT.trns, lux.hub, name, qnt)
 
+rm(list = c("BMT.nms", "BMT.val", "LUX.nms", "LUX.val", "BMT.inv", "BMT.trns", "dOpen", "dOrder", "dmd", "fac", "len", "lux.hub", "modes", "name", "qnt", "row", "time"))
 
+source('C:/Users/a421356/R-GitHub/SCMsim/R/Analysis.R')

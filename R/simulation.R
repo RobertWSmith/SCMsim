@@ -27,7 +27,7 @@ simDF <- function(inv, trans) {
     actual_dmd = inv$actual,
     expected_dmd = inv$expected, 
     forecast_err = inv$error,
-    forecast_err_sq = inv$error.sq,
+    running_err_sum = inv$error.sum,
     order_vol = trans$volume,
     release_dt = trans$rel.dt,
     pipeline_tgt = inv$pipe.tgt,
