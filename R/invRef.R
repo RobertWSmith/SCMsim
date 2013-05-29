@@ -1,6 +1,8 @@
 ### Inventory Reference Class
 
 
+
+
 inv <- setRefClass(
   "inventory",
   fields = list(
@@ -14,14 +16,33 @@ inv <- setRefClass(
     ITorder = "numeric",
     DMDorder = "numeric",
     operating = "logical",
-    ordering = "logical"
-    )
+    ordering = "logical",
+    disruption = "logical"
   )
+)
+
 
 inv$methods(
-  first = function(nm, curr, expect, act, op, ord) {
+  first = function(nm, curr, expect, act, op, ord, dis = NA) {
+    stopifnot(dis == NA | dis > 0)
+    
     err <- (act - expect)
     err.sm <- numeric(length(err))
+    
+#     # disruption tracker, FALSE for NO DISRUPTION, TRUE for DISRUPTION
+#     # defaults to NO DISRUPTION, integer
+#     disr <- vector("logical", length = length(err))
+#     if (is.na(dis)) {
+#       disr <- rep(FALSE, length(err))
+#     } else {
+#       for (i in 1:length(disr)) {
+#         if (i %in% (250:(250 + dis))) {
+#           disr[i] <- TRUE
+#         } else {
+#           disr[i] <- FALSE
+#         }
+#       }
+#     }
     
     for (i in 2:length(err)) {
       err.sm[i] <- err[i-1] + err[i]
@@ -38,6 +59,7 @@ inv$methods(
     DMDorder <<- rep(0, length(curr))
     operating <<- op
     ordering <<- ord
+#    disruption <<- disr
   },
   iterate = function(time) {
     if (getOperating(time)) {
@@ -133,7 +155,9 @@ inv$methods(
   getOrdering = function(time) {
     return(ordering[time])
   }
-  )
+)
+
+
 
 
 # nOp the number of open days per week
@@ -146,6 +170,7 @@ gen.sched <- function(nOp, totSim) {
   }
   return(wrk)
 }
+
 
 #' Function to set up a simulation inventory
 #' 
@@ -175,45 +200,44 @@ gen.inv <- function(nSim, nm, curr, act, opNdays, ordNdays, bias = 0) {
   opNdays <- gen.sched(opNdays, nSim)
   ordNdays <- gen.sched(ordNdays, nSim)
   curr.inv <- c(curr, rep(0, length = (nSim - 1)))
-#   
-#   a <- rnorm(nSim, 0, act[2]) # normally distributed errors ~N(0, sigma)
-#   reset <- (1:nSim %% 45 == 0) # re-evaluate forecast every 60 days
-#   
-#   if (bias == 0) e <- rnorm(nSim, 0, act[2])
-#   else if (bias == -1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) * -1 
-#   else if (bias == 1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) 
-#   
-#   a.dmd <- vector("numeric", nSim)
-#   e.dmd <- vector("numeric", nSim)
-#   a.dmd[1] <- a[1] + act[1]
-#   e.dmd[1] <- a.dmd[1] # initialize the expected and actual random walk to the same value
-# 
-#   for (i in 2:nSim) {
-#     a.dmd[i] <- sqrt((a.dmd[(i-1)] + a[i])^2)
-# 
-#     ### this re-evaluates the expected random walk to the actual at regular 60-day intervals
-#     if (reset[i]) e.dmd[(i-1)] <- a.dmd[(i-1)] 
-#     
-#     # expected value random walk
-#     e.dmd[i] <- sqrt((e.dmd[(i-1)] + e[i])^2)
-#   }  
-#   
-#   for (i in 1:nSim) {
-#     if (!opNdays[i]) {
-#       a.dmd[i] <- 0
-#       e.dmd[i] <- 0
-#     }
-#   }
-#   
+  #   
+  #   a <- rnorm(nSim, 0, act[2]) # normally distributed errors ~N(0, sigma)
+  #   reset <- (1:nSim %% 45 == 0) # re-evaluate forecast every 60 days
+  #   
+  #   if (bias == 0) e <- rnorm(nSim, 0, act[2])
+  #   else if (bias == -1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) * -1 
+  #   else if (bias == 1) e <- sqrt((rnorm(nSim, 0, act[2]))^2) 
+  #   
+  #   a.dmd <- vector("numeric", nSim)
+  #   e.dmd <- vector("numeric", nSim)
+  #   a.dmd[1] <- a[1] + act[1]
+  #   e.dmd[1] <- a.dmd[1] # initialize the expected and actual random walk to the same value
+  # 
+  #   for (i in 2:nSim) {
+  #     a.dmd[i] <- sqrt((a.dmd[(i-1)] + a[i])^2)
+  # 
+  #     ### this re-evaluates the expected random walk to the actual at regular 60-day intervals
+  #     if (reset[i]) e.dmd[(i-1)] <- a.dmd[(i-1)] 
+  #     
+  #     # expected value random walk
+  #     e.dmd[i] <- sqrt((e.dmd[(i-1)] + e[i])^2)
+  #   }  
+  #   
+  
   a.dmd <- abs(rnorm(nSim, act[1], act[2]))
   e <- runif(nSim, 0.5, 1.5)
   e.dmd <- a.dmd * e
+  
+  for (i in 1:nSim) {
+    if (!opNdays[i]) {
+      a.dmd[i] <- 0
+      e.dmd[i] <- 0
+    }
+  }
   
   temp <- inv$new()
   temp$first(name, curr.inv, e.dmd, a.dmd, opNdays, ordNdays)
   
   return(temp)
 }
-
-
 
