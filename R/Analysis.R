@@ -55,7 +55,5 @@ for (i in 1:length(f.name)) {
   print(dat.ss + geom_histogram(mapping = aes(x = forecast_err, y = ..density..)) + 
           geom_density(aes(x = forecast_err, y = ..density..), col = "red"))
   
-  
-  
   dev.off()
 }
