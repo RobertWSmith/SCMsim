@@ -198,16 +198,17 @@ gen.inv <- function(nSim, nm, curr, act, opNdays, ordNdays, bias = 0) {
 #     e.dmd[i] <- sqrt((e.dmd[(i-1)] + e[i])^2)
 #   }  
 #   
-#   for (i in 1:nSim) {
-#     if (!opNdays[i]) {
-#       a.dmd[i] <- 0
-#       e.dmd[i] <- 0
-#     }
-#   }
-#   
+  
   a.dmd <- abs(rnorm(nSim, act[1], act[2]))
   e <- runif(nSim, 0.5, 1.5)
   e.dmd <- a.dmd * e
+  
+  for (i in 1:nSim) {
+    if (!opNdays[i]) {
+      a.dmd[i] <- 0
+      e.dmd[i] <- 0
+    }
+  }
   
   temp <- inv$new()
   temp$first(name, curr.inv, e.dmd, a.dmd, opNdays, ordNdays)

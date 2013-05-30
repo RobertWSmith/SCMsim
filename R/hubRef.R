@@ -21,15 +21,15 @@ HUB$methods(
       factory[[i]] <<- gen.inv(nSim, name, current, actual, opNdays, ordNdays)
     }
   },
-  first.ob = function(nSim, modes, info) {
+  first.ob = function(nSim, modes, info, dis) {
     nFac <- nrow(modes)
     f.trans <<- vector("list", nFac)
     for (i in 1:nFac) {
-      f.trans[[i]] <<- gen.trans(nSim, modes[i, ], info[i])
+      f.trans[[i]] <<- gen.trans(nSim, modes[i, ], info[i], dis)
     }
   },
-  first.ib = function(nSim, modes, info) {
-    h.trans <<- gen.trans(nSim, modes, info)
+  first.ib = function(nSim, modes, info, dis) {
+    h.trans <<- gen.trans(nSim, modes, info, dis)
   },
   first.wh = function(nSim, nm, curr, opNdays, ordNdays) {
     A <- length(getFactory())
@@ -74,7 +74,7 @@ HUB$methods(
 # everything in gen.inv that is length == 1 is a vector length n
 # evrything that is a vector is a matrix, with columns length n, rows length nSim
 # HUB DATA IS ROW 1, FACTORY DATA IS ROW 2 THROUGH THE END OF THE MATRIX
-gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA) {
+gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA, dis = NA) {
   h.name <- as.character(nm[1])
   f.name <- as.character(nm[-1])
   h.curr <- as.numeric(curr[1])
@@ -87,9 +87,9 @@ gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA) {
   h <- HUB$new()
   
   h$first.fa(nSim, f.name, f.curr, f.act, opNdays, ordNdays)
-  h$first.ob(nSim, f.modes, info)
+  h$first.ob(nSim, f.modes, info, dis)
   
-  h$first.ib(nSim, h.modes, info)
+  h$first.ib(nSim, h.modes, info, dis)
   h$first.wh(nSim, h.name, h.curr, opNdays, ordNdays)
   
   return(h)

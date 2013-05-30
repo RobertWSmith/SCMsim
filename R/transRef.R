@@ -57,18 +57,23 @@ trans <- setRefClass(
     rel.dt = "numeric",
     delivered = "logical",
     in.trns = "numeric",
+    disruption = "logical",
     transit.time = "matrix"
     )
   )
 
 ### TRANSIT REFERENCE METHODS
 trans$methods(
-  first = function(vol, rel, del, rng) {
+  first = function(vol, rel, del, rng, dis) {
     volume <<- vol
     rel.dt <<- rel
     delivered <<- del
     in.trns <<- rep(0, length = length(vol))
     transit.time <<- rng
+    disruption <<- dis
+  },
+  getDisruption = function(time) {
+    return(disruption[time])
   },
   setVolume = function(time, vol) {
     volume[time] <<- vol
@@ -92,8 +97,10 @@ trans$methods(
     return(transit.time[sample(nrow(transit.time), 1), ])
   },
   outbound = function(time, vol) {
-    setVolume(time, vol)
-    setReleaseDate(time, (sum(randTrans()) + time))
+    if (!(getDisruption(time))) {
+      setVolume(time, vol)
+      setReleaseDate(time, (sum(randTrans()) + time))
+    }
   },
   inbound = function(time) {
     start <- ifelse((time - 21) < 1, 1, (time - 21))
@@ -146,15 +153,22 @@ trans$methods(
 #' test1 <- transit(1000, c(2,4,18,6,1))
 #' test2 <- transit(25, c(4,5,16,2), 2)
 #' 
-gen.trans <- function(nSim, modes, info = NA) {
+gen.trans <- function(nSim, modes, info = NA, dis = NA) {
 
   vl <- rep(0, length = nSim)
   rl <- rep((nSim + 1), nSim)
   dl <- rep(FALSE, nSim)
   tt <- gen.randT(nSim, modes, info)
   
+  dd <- rep(FALSE, length = nSim)
+  if (!(is.na(dis))) {
+    for (i in 250:(250 + dis - 1)) {
+      dd[i] <- TRUE
+    }
+  }
+  
   trns <- trans$new()
-  trns$first(vl, rl, dl, tt)
+  trns$first(vl, rl, dl, tt,  dd)
   
   return(trns)
 }
