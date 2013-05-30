@@ -1,16 +1,16 @@
 # Run source() on each of the follwing files for your machine in order to 
 # load the neccessary functons to run the simulation
 
-source('C:/Users/Rob/R/SCMsim/R/invRef.R')
-source('C:/Users/Rob/R/SCMsim/R/transRef.R')
-source('C:/Users/Rob/R/SCMsim/R/hubRef.R')
-source('C:/Users/Rob/R/SCMsim/R/simulation.R')
+source('C:/Users/a421356/R-GitHub/SCMsim/R/invRef.R')
+source('C:/Users/a421356/R-GitHub/SCMsim/R/transRef.R')
+source('C:/Users/a421356/R-GitHub/SCMsim/R/hubRef.R')
+source('C:/Users/a421356/R-GitHub/SCMsim/R/simulation.R')
 
-setwd('C:/Users/Rob/R/SCMsim/data')
+setwd('C:/Users/a421356/R-GitHub/SCMsim/data')
 DATA <- read.csv("BUD1207.csv", colClasses = c(rep("character", 3), rep("numeric", 10)))
 
 # sets directory to Output so we can keep our output seperate from the program files
-setwd('C:/Users/Rob/R/SCMsim/Output')
+setwd('C:/Users/a421356/R-GitHub/SCMsim/Output')
 
 #### Name & Quantile ####
 name <- "TEST"
@@ -56,4 +56,4 @@ saveData(BMT.inv, BMT.trns, lux.hub, name, qnt)
 
 rm(list = c("BMT.nms", "BMT.val", "LUX.nms", "LUX.val", "BMT.inv", "BMT.trns", "dOpen", "dOrder", "dmd", "fac", "len", "lux.hub", "modes", "name", "qnt", "row", "time"))
 
-source('C:/Users/Rob/R/SCMsim/R/Analysis.R')
+source('C:/Users/a421356/R-GitHub/SCMsim/R/Analysis.R')
