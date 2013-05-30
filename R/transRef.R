@@ -25,7 +25,7 @@ gen.randT <- function(nSim, modes, info = NA, seed = NA) {
     temp <- round(rtriangle(num, min, max, mode))
     return(temp)
   }
-    
+  
   # default initializer
   mins <- ifelse((modes - 3) > 0, (modes - 3), 1)
   maxs <- ifelse((modes + 4) > (2 * modes), (modes + 2), (modes + 4))
@@ -45,7 +45,7 @@ gen.randT <- function(nSim, modes, info = NA, seed = NA) {
   
   if (!is.na(info)) rng <- cbind(rng, rbinom(nSim, 1, (1/info)))
   else  rng <- rng
-
+  
   return(rng)
 }
 
@@ -58,8 +58,8 @@ trans <- setRefClass(
     delivered = "logical",
     in.trns = "numeric",
     transit.time = "matrix"
-    )
   )
+)
 
 ### TRANSIT REFERENCE METHODS
 trans$methods(
@@ -131,7 +131,7 @@ trans$methods(
     }
     return(rt)
   }
-  )
+)
 
 
 # basic intializer for tranist refernce class
@@ -147,7 +147,7 @@ trans$methods(
 #' test2 <- transit(25, c(4,5,16,2), 2)
 #' 
 gen.trans <- function(nSim, modes, info = NA) {
-
+  
   vl <- rep(0, length = nSim)
   rl <- rep((nSim + 1), nSim)
   dl <- rep(FALSE, nSim)
@@ -158,7 +158,5 @@ gen.trans <- function(nSim, modes, info = NA) {
   
   return(trns)
 }
-
-
 
 

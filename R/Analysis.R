@@ -59,5 +59,3 @@ for (i in 1:length(f.name)) {
   
   dev.off()
 }
-
-

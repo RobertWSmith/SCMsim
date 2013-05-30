@@ -7,7 +7,7 @@ HUB <- setRefClass(
   # warehouse = HUB Inventory
   # f.trans = Child Factory Transit
   # factory = Child Factory Inventory
-  )
+)
 
 HUB$methods(
   first.fa = function(nSim, nm, curr, act, opNdays, ordNdays) {
@@ -69,7 +69,7 @@ HUB$methods(
   getFactory = function() {
     return(factory)
   }
-  )
+)
 
 # everything in gen.inv that is length == 1 is a vector length n
 # evrything that is a vector is a matrix, with columns length n, rows length nSim
@@ -109,10 +109,5 @@ gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA) {
 # 
 # hub <- HUB$new()
 # hub$first.fa(nSim, nm, curr, act, op, ord)
-
-
-
-
-
 
 

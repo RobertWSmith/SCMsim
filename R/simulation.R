@@ -71,7 +71,4 @@ saveData <- function(inv, trans, hub, sim.name, quant) {
   nm <- paste0(sim.name, " - quant ", quant, ".csv")
   write.csv(dfSim, file = nm, quote = FALSE)
 }
-  
-
-
 
