@@ -14,12 +14,11 @@ library(triangle)
 #' @param nSim number of rows of random numbers to be returned
 #' @param modes vector of modes of different transit steps
 #' @param info mean number of days for information cycle
-#' @param seed set if seed is desired
 #' @keyword simulation setup
 #' @examples
 #' test1 <- gen.randT(1000, c(2, 3, 5))
-#' test2 <- gen.randT(1000, c(2, 4, 8, 3), info = 2, seed = 42)
-gen.randT <- function(nSim, modes, info = NA, seed = NA) {
+#' test2 <- gen.randT(1000, c(2, 4, 8, 3), info = 2)
+gen.randT <- function(nSim, modes, info = NA) {
   #  discrete triangle distribution random numbers
   rTriNums <- function(num, min, max, mode) {
     temp <- round(rtriangle(num, min, max, mode))
@@ -28,23 +27,22 @@ gen.randT <- function(nSim, modes, info = NA, seed = NA) {
   
   # default initializer
   mins <- ifelse((modes - 3) > 0, (modes - 3), 1)
-  maxs <- ifelse((modes + 4) > (2 * modes), (modes + 2), (modes + 4))
+  maxs <- ifelse((modes + 5) > (2 * modes), (modes + 2), (modes + 5))
   
-  # I don't want to set the seed on each iteration of rTriNums
-  # This allows it to be optional
-  if (!is.na(seed)) set.seed(seed)
-  
-  rng <- matrix(0, nrow = nSim, ncol = length(modes))
+  rng <- matrix(0, nrow = nSim, ncol = (length(modes)+1))
   for (i in 1:length(modes)) {
     if (!is.na(modes[i])) {
       rng[ ,i] <- rTriNums(nSim, mins[i], maxs[i], modes[i])
     } else {
-      rng[ ,i] <- rep(0, nSim)
+      rng[ ,i] <- rep(NA, nSim)
     }
   }
   
-  if (!is.na(info)) rng <- cbind(rng, rbinom(nSim, 1, (1/info)))
-  else  rng <- rng
+  if (is.na(info)) {
+    rng[ ,7] <- rep(NA, nSim)
+  } else {
+    rng[ ,7] <- rbinom(nSim, 1, (1/info))
+  }
   
   return(rng)
 }
@@ -57,6 +55,7 @@ trans <- setRefClass(
     rel.dt = "numeric",
     delivered = "logical",
     in.trns = "numeric",
+    est.trans = "numeric",
     disruption = "logical",
     transit.time = "matrix"
   )
@@ -64,16 +63,20 @@ trans <- setRefClass(
 
 ### TRANSIT REFERENCE METHODS
 trans$methods(
-  first = function(vol, rel, del, rng, dis) {
-    volume <<- vol
-    rel.dt <<- rel
-    delivered <<- del
-    in.trns <<- rep(0, length = length(vol))
+  first = function(rng, dis, ett) {
+    volume <<- rep(0, length(dis))
+    rel.dt <<- rep((length(dis) + 1), length(dis))
+    delivered <<- rep(FALSE, length = length(dis))
+    in.trns <<- rep(0, length = length(dis))
     transit.time <<- rng
     disruption <<- dis
+    est.trans <<- ett
+  },
+  getEstTransTime = function(time) {
+    return(est.trans[time])
   },
   getDisruption = function(time) {
-    return(disruption[time])
+    return(!(disruption[time]))
   },
   setVolume = function(time, vol) {
     volume[time] <<- vol
@@ -93,13 +96,33 @@ trans$methods(
   getDelivered = function() {
     return(delivered)
   },
-  randTrans = function() {
-    return(transit.time[sample(nrow(transit.time), 1), ])
+  getTransR = function(time, range) {
+    if ((time - range) < 1) {
+      tt <- randTrans(100)
+    } else {
+      # (time - range + 1) corrects off by one error
+      chunk <- transit.time[(time - range + 1):time, ]
+      tt <- apply(chunk, 1, sum, na.rm = TRUE)
+    }
+    
+    return(tt)
+  },
+  getTrans = function(time) {
+    return(sum(transit.time[time], na.rm = TRUE))
+  },
+  randTrans = function(nRand) {
+    smp <- sample(nrow(transit.time), nRand, replace = TRUE)
+    chunk <- transit.time[smp, ]
+    tt <- 
+    return(transit.time[smp, ])
   },
   outbound = function(time, vol) {
-    if (!(getDisruption(time))) {
+    if ((getDisruption(time) & (vol > 0))) {
+      stopifnot(!is.na(getTrans(time) + time))
+      
       setVolume(time, vol)
-      setReleaseDate(time, (sum(randTrans()) + time))
+      setReleaseDate(time, (getTrans(time) + time))
+      
     }
   },
   inbound = function(time) {
@@ -116,6 +139,7 @@ trans$methods(
         setDelivered(i)
       }
     }
+    
     return(rt)
   },
   setITVolume = function(time) {
@@ -136,6 +160,7 @@ trans$methods(
         rt <- rt + v[i]
       }
     }
+    
     return(rt)
   }
 )
@@ -152,23 +177,19 @@ trans$methods(
 #' @examples
 #' test1 <- transit(1000, c(2,4,18,6,1))
 #' test2 <- transit(25, c(4,5,16,2), 2)
-#' 
 gen.trans <- function(nSim, modes, info = NA, dis = NA) {
-  
-  vl <- rep(0, length = nSim)
-  rl <- rep((nSim + 1), nSim)
-  dl <- rep(FALSE, nSim)
   tt <- gen.randT(nSim, modes, info)
+  ESTtt <- rep(sum(modes, na.rm = TRUE), nSim)
   
   dd <- rep(FALSE, length = nSim)
   if (!(is.na(dis))) {
-    for (i in 250:(250 + dis - 1)) {
+    for (i in 750:(750 + dis - 1)) {
       dd[i] <- TRUE
     }
   }
   
   trns <- trans$new()
-  trns$first(vl, rl, dl, tt,  dd)
+  trns$first(tt, dd, ESTtt)
   
   return(trns)
 }

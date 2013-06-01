@@ -16,26 +16,28 @@ simulate.hub <- function(time, hub, quant) {
   simulate(time, hub$warehouse, hub$h.trans, quant)
 }
 
+#' This funciton converts inventory & transit reference classes into truncated data frames
 simDF <- function(inv, trans) {
   rand.n <- as.data.frame(trans$transit.time)
-  colnames(rand.n) <- paste0("RN#", 1:ncol(rand.n))
+  colnames(rand.n) <- c("orig_prep", "orig_dray", "orig_port", "ocean_transit", "dest_port", "dest_dray", "info_cycle")
   
   dfData <- as.data.frame(cbind(
     factory = inv$name,
     daily_inv = inv$current,
     in_transit = trans$in.trns,
     actual_dmd = inv$actual,
-    expected_dmd = inv$expected, 
+    expected_dmd = inv$expected,
+    inTransit_ord = inv$ITorder,
+    demand_ord = inv$DMDorder,
     forecast_err = inv$error,
-    running_err_sum = inv$error.sum,
+    fcst_err_sum = inv$error.sum,
     order_vol = trans$volume,
     release_dt = trans$rel.dt,
     pipeline_tgt = inv$pipe.tgt,
-    inTransit_ord = inv$ITorder,
-    demand_ord = inv$DMDorder,
     factory_op = inv$operating,
     factory_ord = inv$ordering,
     delivered = trans$delivered,
+    est_trans = trans$est.trans,
     rand.n
   ))
   
@@ -51,6 +53,10 @@ simDF <- function(inv, trans) {
 #' @param hub class hub, created by gen.hub()
 #' @param sim.name unique name for the simulation, to help organize the output
 saveData <- function(inv, trans, hub, sim.name, quant) {
+  OUTPUT.DIR <- "C:/Users/a421356/R-GitHub/SCMsim/Output/"
+  SIM.DIR <- paste0(OUTPUT.DIR, sim.name, "quant - ", quant)
+  dir.create(SIM.DIR)
+  setwd(SIM.DIR)
   
   L <- length(inv)
   dfSim <- simDF(inv[[1]], trans[[1]])
@@ -65,11 +71,12 @@ saveData <- function(inv, trans, hub, sim.name, quant) {
     dfSim <- rbind(dfSim, temp)
   }
   
-  temp <- temp <- simDF(hub$warehouse, (hub$h.trans))
+  temp <- simDF(hub$warehouse, (hub$h.trans))
   dfSim <- rbind(dfSim, temp)
   
   nm <- paste0(sim.name, " - quant ", quant, ".csv")
-  write.csv(dfSim, file = nm, quote = FALSE)
+  write.csv(dfSim, file = nm, quote = FALSE, append = FALSE)
+  return(c(SIM.DIR, nm))
 }
 
 

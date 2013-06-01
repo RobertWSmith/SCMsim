@@ -52,26 +52,35 @@ inv$methods(
     updCurrent(time, trans$inbound(time))
   },
   order = function(time, trans, quant) {
-    trans$setITVolume(time) # no matter what, update in transit volume
+    # no matter what, update in transit volume
+    trans$setITVolume(time) 
     
     if (getOrdering(time)) {
-      samples <- 50
       # the next few lines find an estimated transit time
-      estTT <- matrix(0, nrow = samples, ncol = ncol(trans$transit.time))
-      for (i in 1:samples) {
-        estTT[i, ] <- trans$randTrans()
-      } 
-      # quant is the quantile supplied for transit time, 
-      qTT <- round(quantile(apply(estTT, 1, sum), probs = quant))
+      estTT <- trans$getTransR(time, 100)
       
-      setPipeTgt(time, (qTT * mean(expected)))
-      setITorder(time, (getPipeTgt(time) - trans$getITVolume(time)))
+      # quant is the quantile supplied for transit time, 
+      qTT <- ceiling(quantile(estTT, probs = quant, na.rm = TRUE))
+      
+      ### pipeline target for WHOLE transit ###
+      #       setPipeTgt(time, (qTT * mean(expected)))
+      ### pipeline target for prior week ###
+      setPipeTgt(time, 7 * mean(expected))
+      
+      setITorder(time, (getPipeTgt(time) - getITVolume(time, trans)))
+      
+      ### demand order, with error considered ###
       setDMDorder(time, (sum(getExpectedR((time), 7)) + sum(getErrorR(time, 7))))
+      ### demand order, with no error considered ###
+      #       setDMDorder(time, (sum(getExpectedR(time, 7))))
       
       order <- (ceiling((getITorder(time) + getDMDorder(time) - getCurrent(time)) / 18000)) * 18000
       if (order <= 0) order <- 0
       trans$outbound(time, order)
     }
+  },
+  getITVolume = function(time, trans) {
+    return(trans$getITVolume(time))
   },
   getName = function() {
     return(name[1])
@@ -93,6 +102,9 @@ inv$methods(
   },
   setITorder = function(time, vol) {
     ITorder[time] <<- vol
+  },
+  getErrorSum = function(time) {
+    return(error.sum[time])
   },
   getErrorR = function(time, range) {
     start <- ifelse((time - range) < 1, 1, (time - range + 1))
