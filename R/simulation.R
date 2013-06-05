@@ -21,6 +21,7 @@ simDF <- function(inv, trans) {
                         "dest_port", "dest_dray") # , "info_cycle")
   
   dfData <- as.data.frame(cbind(
+    date = 1:nrow(rand.n),
     factory = inv$name,
     daily_inv = inv$current,
     in_transit = trans$in.trns,

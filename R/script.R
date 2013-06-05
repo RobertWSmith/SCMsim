@@ -13,9 +13,9 @@ DATA <- read.csv(file.path(BASE.DIR, 'data', "BUD1207.csv"),
 
 #### Name & Quantile ####
 dOpen <- 6
-dOrder <- 1
+dOrder <- 6
 nSim <- 1500
-disrupt <- c(750, 21)
+disrupt <- c(1, 1)
 bias <- 0
 qnt <- 0.95
 

@@ -56,7 +56,7 @@ inv$methods(
     
     if (getOrdering(time)) {
       samples <- 50
-      # the next few lines find an estimated transit time
+      #       the next few lines find an estimated transit time
       estTT <- matrix(0, nrow = samples, ncol = ncol(trans$transit.time))
       for (i in 1:samples) {
         estTT[i, ] <- trans$randTrans()

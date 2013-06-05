@@ -39,11 +39,10 @@ HUB$methods(
     
     for (i in 1:A) {
       act[,i] <- (a[[i]])$actual
-      exp[,i] <- (a[[i]])$expected
     } 
     
     act <- apply(act, 1, sum)
-    exp <- apply(exp, 1, sum)
+    exp <- act * runif(length(act), 0.5, 1.5)
     
     warehouse <<- gen.inv(nSim, nm, curr, act, opNdays, ordNdays)
     warehouse$expected <<- exp
