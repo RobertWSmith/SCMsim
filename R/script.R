@@ -1,20 +1,28 @@
 # Run source() on each of the follwing files for your machine in order to 
 # load the neccessary functons to run the simulation
 
-source('C:/Users/a421356/R-GitHub/SCMsim/R/invRef.R')
-source('C:/Users/a421356/R-GitHub/SCMsim/R/transRef.R')
-source('C:/Users/a421356/R-GitHub/SCMsim/R/hubRef.R')
-source('C:/Users/a421356/R-GitHub/SCMsim/R/simulation.R')
+BASE.DIR <- getwd()
 
-setwd('C:/Users/a421356/R-GitHub/SCMsim/data')
-DATA <- read.csv("BUD1207.csv", colClasses = c(rep("character", 3), rep("numeric", 10)))
+source(file.path(BASE.DIR, 'R', "invRef.R"))
+source(file.path(BASE.DIR, 'R', "transRef.R"))
+source(file.path(BASE.DIR, 'R', "hubRef.R"))
+source(file.path(BASE.DIR, 'R', "simulation.R"))
 
-# sets directory to Output so we can keep our output seperate from the program files
-setwd("C:/Users/a421356/R-GitHub/SCMsim/Output")
+DATA <- read.csv(file.path(BASE.DIR, 'data', "BUD1207.csv"), 
+                 colClasses = c(rep("character", 3), rep("numeric", 10)))
 
 #### Name & Quantile ####
-name <- "TEST"
+dOpen <- 6
+dOrder <- 1
+nSim <- 1500
+disrupt <- c(750, 21)
+bias <- 0
 qnt <- 0.95
+
+seed <- NA
+if (!is.na(seed)) set.seed(seed)
+
+name <- paste0("OP", dOpen, " DAYS", nSim, " DISR", disrupt[1], " LEN", disrupt[2], " SL", (qnt * 100))
 
 #### Subsetting ####
 BMT.val <- as.matrix(DATA[((DATA[ ,1] == "Beaumont") & (DATA[ ,3] != "Lux Hub")), 4:13], rownames.force = FALSE)
@@ -22,12 +30,8 @@ BMT.nms <- as.matrix(DATA[((DATA[ ,1] == "Beaumont") & (DATA[ ,3] != "Lux Hub"))
 LUX <- rbind(DATA[(DATA[ ,3] == "Lux Hub"), ], DATA[(DATA[ ,1] == "Lux Hub"), ])
 LUX.val <- as.matrix(LUX[,4:13], rownames.force = FALSE)
 LUX.nms <- as.matrix(LUX[1:3], rownames.force = FALSE)
-rm(list = c("LUX", "DATA"))
 
 #### Initialization ####
-dOpen <- 6
-dOrder <- 1
-nSim <- 1000
 BMT.inv <- vector("list", length = nrow(BMT.val))
 BMT.trns <- vector("list", length = nrow(BMT.val))
 
@@ -40,20 +44,21 @@ for (row in 1:nrow(BMT.val)) {
   BMT.trns[[row]] <- gen.trans(nSim, modes)
 }
 
-# gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA)
 lux.hub <- gen.hub(nSim, LUX.nms[,3], LUX.val[,9], LUX.val[,7:8], dOpen, dOrder, LUX.val[, 1:6])
 
 ####  SIMULATION LOOP  ####
-len <- length(BMT.inv)
 for (time in 1:nSim) {
-  for (fac in 1:len) {
+  for (fac in 1:length(BMT.inv)) {
     simulate(time, (BMT.inv[[fac]]), (BMT.trns[[fac]]), qnt)
   }
   simulate.hub(time, lux.hub, qnt)
 }
 
-saveData(BMT.inv, BMT.trns, lux.hub, name, qnt)
+SIM.DIR <- saveData(BMT.inv, BMT.trns, lux.hub, name, qnt)
 
-rm(list = c("BMT.nms", "BMT.val", "LUX.nms", "LUX.val", "BMT.inv", "BMT.trns", "dOpen", "dOrder", "dmd", "fac", "len", "lux.hub", "modes", "name", "qnt", "row", "time"))
+source(file.path(BASE.DIR, 'R', "Analysis.R"))
 
-source('C:/Users/a421356/R-GitHub/SCMsim/R/Analysis.R')
+
+
+
+

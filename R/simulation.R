@@ -9,8 +9,7 @@ simulate <- function(time, inv, trans, quant) {
 }
 
 simulate.hub <- function(time, hub, quant) {
-  L <- length(hub$getFactory())
-  for (fac in 1:L) {
+  for (fac in 1:length(hub$getFactory())) {
     simulate(time, ((hub$factory)[[fac]]), ((hub$f.trans)[[fac]]), quant)
   }
   simulate(time, hub$warehouse, hub$h.trans, quant)
@@ -18,7 +17,8 @@ simulate.hub <- function(time, hub, quant) {
 
 simDF <- function(inv, trans) {
   rand.n <- as.data.frame(trans$transit.time)
-  colnames(rand.n) <- paste0("RN#", 1:ncol(rand.n))
+  colnames(rand.n) <- c("orig_prep", "orig_dray", "orig_port", "ocean_transit", 
+                        "dest_port", "dest_dray") # , "info_cycle")
   
   dfData <- as.data.frame(cbind(
     factory = inv$name,
@@ -68,7 +68,10 @@ saveData <- function(inv, trans, hub, sim.name, quant) {
   temp <- temp <- simDF(hub$warehouse, (hub$h.trans))
   dfSim <- rbind(dfSim, temp)
   
-  nm <- paste0(sim.name, " - quant ", quant, ".csv")
-  write.csv(dfSim, file = nm, quote = FALSE)
+  SIM.DIR <- file.path(BASE.DIR, sim.name)
+  dir.create(SIM.DIR)
+  nm <- "raw_output.csv"
+  write.csv(dfSim, file = file.path(SIM.DIR, nm), quote = FALSE)
+  return(SIM.DIR)
 }
 

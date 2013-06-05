@@ -1,59 +1,119 @@
 library(ggplot2)
 
-
 options(scipen = 10)
-### if need be
-setwd("C:/Users/a421356/R-GitHub/SCMsim/Output")
+
+#### USE THIS FOR FINDING THE CORRECT DIRECTORY FOR BATCH UPDATES ####
+# (AVAIL.DIRS <- list.dirs())
+# DATA.DIR <- vector("character", length(AVAIL.DIRS))
+# cnt <- 1
+# for (i in 1:length(AVAIL.DIRS)) {
+#   if (substr(AVAIL.DIRS[i], 3,4) == "OP")  {
+#     DATA.DIR[cnt] <- AVAIL.DIRS[i]
+#     cnt <- cnt + 1
+#   }
+# }
+# DATA.DIR <- DATA.DIR[1:(cnt - 1)]
+
+#### Sets the output directory to the path returned at the end of script.R ####
+data <- read.csv(paste0(SIM.DIR, "/raw_output.csv")) ### WHOLE SIMULATION
 
 
-data <- read.csv("TEST - quant 0.95.csv")
-temp <- colnames(data)
-temp[1] <- "date"
-colnames(data) <- temp
-data$date[nSim:length(data$date)] <- ((data$date[nSim:length(data$date)] %% nSim) + 1)
-rm(temp)
-
+rem <- FALSE
 
 f.name <- as.character(unique(data$factory))
-plots <- vector("list", length = length(f.name))
+colnames(data)[1] <- "date"
+nSim <- nrow(data) / length(f.name)
+data$date[nSim:length(data$date)] <- ((data$date[nSim:length(data$date)] %% nSim) + 1)
 
+zeroes <- matrix(0, nrow = length(f.name), ncol = 3, 
+                 dimnames = list(row = f.name, col = c("WholeSim", "Disruption+100", "Proportion")))
 
+#### loop to create multiple output graphs per simulation run, labeled independently ####
 for (i in 1:length(f.name)) {
-  dat.ss <- ggplot(data[(data$factory == f.name[i]), 1:8])
-  plots[[i]] <- dat.ss
+  tmp <- data[(data$factory == f.name[i]), ]
   
-  pdf(paste0("C:/Users/a421356/R-GitHub/SCMsim/Output/Graphics/", f.name[i], ".pdf"), 
-      width = 11, height = 8.5, onefile = TRUE, title = f.name[i])
-  print(dat.ss + stat_smooth(mapping = aes(x = date, y = daily_inv), 
-                             geom = "line", col = "red") + 
-          geom_point(aes(x = date, y = daily_inv)) + 
+  if (rem) {
+    whole.sim <- tmp[500:nrow(tmp), ]
+    d.vis <- ((disrupt[1]) - 500 - 50):((disrupt[1]) - 500 - 50 + 200)
+    d.meas <- (disrupt[1] - 500):((disrupt[1]) - 500 + 100)
+  } else {
+    whole.sim <- tmp
+    d.vis <- ((disrupt[1]) - 50):((disrupt[1]) - 50 + 200)
+    d.meas <- (disrupt[1]):((disrupt[1]) + 100)
+  }
+  
+  disrupt.ss <- whole.sim[d.vis, ] # graphing data
+  disr.ss <- whole.sim[d.meas, ] # 
+  
+  if (rem) {
+    zrs <- c(sum(((whole.sim$daily_inv == 0))), sum((disr.ss$daily_inv == 0)))
+  } else {
+    zrs <- c(sum(((whole.sim$daily_inv == 0) & (1:nSim >= 100))), sum((disr.ss$daily_inv == 0)))
+  }
+  
+  zrs <- c(zrs, (zrs[2] / zrs[1]))
+  zeroes[i, ] <- zrs
+  
+  tw <- ggplot(whole.sim)
+  td <- ggplot(disrupt.ss)
+  
+  # begin PDF creation
+  pdf(paste0(SIM.DIR, "/", f.name[i], ".pdf"), width = 11, height = 8.5, onefile = TRUE, title = f.name[i])
+  
+  # plot of the whole simulation 
+  # x = days, y = daily inventory
+  print(tw + geom_line(aes(x = date, y = daily_inv)) + ylim(0, max(whole.sim$daily_inv)) +
+          geom_hline(aes(yintercept = data[(data$DESTINATION == f.name[i]), 12]), linetype = "dashed", col = "blue") +
+          stat_smooth(mapping = aes(x = date, y = daily_inv), geom = "line", col = "red") + 
           labs(list(title = paste("Daily Inventory -", f.name[i]), 
                     x = "Simulation Days", y = "Daily Inventory (kgs.)" )))
   
-  print(dat.ss + stat_smooth(mapping = aes(x = date, y = in_transit), 
-                             geom = "line", col = "red") + 
-          geom_point(aes(x = date, y = in_transit)) + 
+  # plot of the whole simulation 
+  # x = days, y = in transit inventory
+  print(tw + geom_point(aes(x = date, y = in_transit)) + ylim(0, max(whole.sim$in_transit)) +
+          geom_hline(aes(yintercept = data[data$DESTINATION == f.name[i], 13]), linetype = "dashed", col = "blue")  +
+          stat_smooth(mapping = aes(x = date, y = in_transit), geom = "line", col = "red") + 
           labs(list(title = paste("In Transit Inventory -", f.name[i]), 
                     x = "Simulation Days", y = "In Transit Inventory (kgs.)" )))
   
-  print(dat.ss + stat_smooth(mapping = aes(x = date, y = forecast_err), 
-                             geom = "line", col = "red") + 
-          geom_point(aes(x = date, y = forecast_err)) + 
+  # plot of the disruption range (+50 days before and +50 after) simulation 
+  # x = days, y = daily inventory
+  print(td + geom_line(aes(x = date, y = daily_inv)) + ylim(0, max(disrupt.ss$daily_inv)) + xlim(min(d.vis), max(d.vis)) + 
+          geom_hline(aes(yintercept = data[data$DESTINATION == f.name[i], 13]), linetype = "dashed", col = "blue") +
+          geom_vline(aes(xintercept = c(min(d.meas), (min(d.meas)+21)), linetype = "dotted", col = "purple")) +
+          stat_smooth(mapping = aes(x = date, y = daily_inv), data = whole.sim, geom = "line", col = "red") + 
+          labs(list(title = paste("Disruption Daily Inventory -", f.name[i]), 
+                    x = "Simulation Days", y = "Daily Inventory (kgs.)" )))
+  
+  # plot of the whole simulation
+  # x = days, y = forecast error 
+  # (error > 0 = forecast underestimate, error < 0 forecast overestimate)
+  print(tw + geom_point(aes(x = date, y = forecast_err)) + 
+          stat_smooth(mapping = aes(x = date, y = forecast_err), geom = "line", col = "red") + 
           labs(list(title = paste("Forecast Error -", f.name[i]), 
                     x = "Simulation Days", y = "Forecast Error (kgs.)" )))
   
-  print(dat.ss + geom_point(aes(x = date, y = forecast_err), col = "red") + 
+  # plot of the whole simulation
+  # x = days, y1 = forecast error, y2 = actual daily inventory
+  # (error > 0 = forecast underestimate, error < 0 forecast overestimate)
+  # also confirming that the error is small, and comparing large error outliers to the inventory
+  print(tw + geom_line(aes(x = date, y = forecast_err), col = "red") + 
           labs(list(title = paste("Daily Inventory & Forecast Error -", f.name[i]), 
                     x = "Simulation Days", y = "Material (kgs.)" )) + 
-          geom_point(aes(x = date, y = daily_inv), col = "black") +
-          stat_smooth(mapping = aes(x = date, y = daily_inv), 
-                      geom = "line", col = "red") + 
-          stat_smooth(mapping = aes(x = date, y = forecast_err), 
-                      geom = "line", col = "black")
-  )
+          geom_line(aes(x = date, y = daily_inv), col = "black") +
+          stat_smooth(mapping = aes(x = date, y = daily_inv), geom = "line", col = "red") + 
+          stat_smooth(mapping = aes(x = date, y = forecast_err), geom = "line", col = "black"))
   
-  print(dat.ss + geom_histogram(mapping = aes(x = forecast_err, y = ..density..)) + 
+  # histogram confirming that errors are normally distributed 
+  #   (but zero-inflated due to off days)
+  print(tw + geom_histogram(mapping = aes(x = forecast_err, y = ..density..)) + 
           geom_density(aes(x = forecast_err, y = ..density..), col = "red"))
   
+  # end PDF creation
   dev.off()
 }
+
+#### write the table of values for days with zero inventory, starting point ####
+write.csv(zeroes, file.path(SIM.DIR, "ZeroInventoryTable.csv"), quote = FALSE)
+
+
