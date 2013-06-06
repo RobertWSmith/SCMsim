@@ -19,7 +19,7 @@ library(triangle)
 #' @examples
 #' test1 <- gen.randT(1000, c(2, 3, 5))
 #' test2 <- gen.randT(1000, c(2, 4, 8, 3), info = 2, seed = 42)
-gen.randT <- function(nSim, modes, info = NA, seed = NA) {
+gen.randT <- function(nSim, modes, info = NA) {
   #  discrete triangle distribution random numbers
   rTriNums <- function(num, min, max, mode) {
     temp <- round(rtriangle(num, min, max, mode))
@@ -30,10 +30,6 @@ gen.randT <- function(nSim, modes, info = NA, seed = NA) {
   mins <- ifelse((modes - 3) > 0, (modes - 3), 1)
   maxs <- ifelse((modes + 4) > (2 * modes), (modes + 2), (modes + 4))
   
-  # I don't want to set the seed on each iteration of rTriNums
-  # This allows it to be optional
-  if (!is.na(seed)) set.seed(seed)
-  
   rng <- matrix(0, nrow = nSim, ncol = length(modes))
   for (i in 1:length(modes)) {
     if (!is.na(modes[i])) {
@@ -43,8 +39,11 @@ gen.randT <- function(nSim, modes, info = NA, seed = NA) {
     }
   }
   
-  if (!is.na(info)) rng <- cbind(rng, rbinom(nSim, 1, (1/info)))
-  else  rng <- rng
+  if (!is.na(info)) {
+    rng <- cbind(rng, rbinom(nSim, 1, (1/info)))
+  } else {
+    rng <- cbind(rng, rep(0, nSim))
+  }
   
   return(rng)
 }
@@ -57,18 +56,23 @@ trans <- setRefClass(
     rel.dt = "numeric",
     delivered = "logical",
     in.trns = "numeric",
+    ship.size = "numeric",
     transit.time = "matrix"
   )
 )
 
 ### TRANSIT REFERENCE METHODS
 trans$methods(
-  first = function(vol, rel, del, rng) {
+  first = function(vol, rel, del, rng, shp) {
     volume <<- vol
     rel.dt <<- rel
     delivered <<- del
     in.trns <<- rep(0, length = length(vol))
+    ship.size <<- rep(shp, length = length(vol))
     transit.time <<- rng
+  },
+  getShipmentSize = function() {
+    return(ship.size[1])
   },
   setVolume = function(time, vol) {
     volume[time] <<- vol
@@ -146,15 +150,14 @@ trans$methods(
 #' test1 <- transit(1000, c(2,4,18,6,1))
 #' test2 <- transit(25, c(4,5,16,2), 2)
 #' 
-gen.trans <- function(nSim, modes, info = NA) {
-  
+gen.trans <- function(nSim, modes, shpSz, info = NA) {
   vl <- rep(0, length = nSim)
   rl <- rep((nSim + 1), nSim)
   dl <- rep(FALSE, nSim)
   tt <- gen.randT(nSim, modes, info)
   
   trns <- trans$new()
-  trns$first(vl, rl, dl, tt)
+  trns$first(vl, rl, dl, tt, shpSz)
   
   return(trns)
 }

@@ -68,7 +68,9 @@ inv$methods(
       setITorder(time, (getPipeTgt(time) - trans$getITVolume(time)))
       setDMDorder(time, (sum(getExpectedR((time), 7)) + sum(getErrorR(time, 7))))
       
-      order <- (ceiling((getITorder(time) + getDMDorder(time) - getCurrent(time)) / 18000)) * 18000
+      shp.sz <- trans$getShipmentSize()
+      
+      order <- (ceiling((getITorder(time) + getDMDorder(time) - getCurrent(time)) / shp.sz)) * shp.sz
       if (order <= 0) order <- 0
       trans$outbound(time, order)
     }
@@ -163,12 +165,12 @@ gen.sched <- function(nOp, totSim) {
 #' @example
 #' test <- gen.inv()
 gen.inv <- function(nSim, nm, curr, act, opNdays, ordNdays, bias = 0) {
-  stopifnot(is.numeric(nSim) & length(nSim) == 1)
+  stopifnot(is.numeric(nSim) & (length(nSim) == 1))
   stopifnot(is.character(nm))
-  stopifnot(is.numeric(nSim) & length(nSim) == 1)
-  stopifnot(is.numeric(curr) & length(curr) == 1)
-  stopifnot(is.numeric(opNdays) & length(opNdays) == 1)
-  stopifnot(is.numeric(ordNdays) & length(ordNdays) == 1)
+  stopifnot(is.numeric(nSim) & (length(nSim) == 1))
+  stopifnot(is.numeric(curr) & (length(curr) == 1))
+  stopifnot(is.numeric(opNdays) & (length(opNdays) == 1))
+  stopifnot(is.numeric(ordNdays) & (length(ordNdays) == 1))
   
   name <- rep(nm, nSim)
   opNdays <- gen.sched(opNdays, nSim)

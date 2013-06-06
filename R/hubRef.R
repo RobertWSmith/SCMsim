@@ -15,21 +15,19 @@ HUB$methods(
     factory <<- vector("list", length = nFac)
     
     for (i in 1:nFac) {
-      name <- as.character(nm[i])
-      current <- as.numeric(curr[i])
-      actual <- as.vector(act[i, ])
-      factory[[i]] <<- gen.inv(nSim, name, current, actual, opNdays, ordNdays)
+      factory[[i]] <<- gen.inv(nSim, as.character(nm[i]), as.numeric(curr[i]), 
+                               as.numeric(act[i, ]), opNdays, as.numeric(ordNdays[i]))
     }
   },
-  first.ob = function(nSim, modes, info) {
+  first.ob = function(nSim, modes, shpSz, info) {
     nFac <- nrow(modes)
     f.trans <<- vector("list", nFac)
     for (i in 1:nFac) {
-      f.trans[[i]] <<- gen.trans(nSim, modes[i, ], info[i])
+      f.trans[[i]] <<- gen.trans(nSim, modes[i, ], shpSz[i], info[i])
     }
   },
-  first.ib = function(nSim, modes, info) {
-    h.trans <<- gen.trans(nSim, modes, info)
+  first.ib = function(nSim, modes, shpSz, info) {
+    h.trans <<- gen.trans(nSim, modes, shpSz, info)
   },
   first.wh = function(nSim, nm, curr, opNdays, ordNdays) {
     A <- length(getFactory())
@@ -44,7 +42,7 @@ HUB$methods(
     act <- apply(act, 1, sum)
     exp <- act * runif(length(act), 0.5, 1.5)
     
-    warehouse <<- gen.inv(nSim, nm, curr, act, opNdays, ordNdays)
+    warehouse <<- gen.inv(nSim, nm, curr, act, opNdays, as.numeric(ordNdays))
     warehouse$expected <<- exp
   },
   iterate = function(time) {
@@ -73,7 +71,7 @@ HUB$methods(
 # everything in gen.inv that is length == 1 is a vector length n
 # evrything that is a vector is a matrix, with columns length n, rows length nSim
 # HUB DATA IS ROW 1, FACTORY DATA IS ROW 2 THROUGH THE END OF THE MATRIX
-gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA) {
+gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, shpSz, info = NA) {
   h.name <- as.character(nm[1])
   f.name <- as.character(nm[-1])
   h.curr <- as.numeric(curr[1])
@@ -82,14 +80,19 @@ gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA) {
   f.act <- (act[2:nrow(act), ])
   h.modes <- as.numeric(modes[1, ])
   f.modes <- (modes[2:nrow(modes), ])
+  h.shpSz <- shpSz[1]
+  f.shpSz <- shpSz[-1]
+  h.ord <- ordNdays[1]
+  f.ord <- ordNdays[-1]
+  h.info <- info[1]
+  f.info <- info[-1]
   
   h <- HUB$new()
   
-  h$first.fa(nSim, f.name, f.curr, f.act, opNdays, ordNdays)
-  h$first.ob(nSim, f.modes, info)
-  
-  h$first.ib(nSim, h.modes, info)
-  h$first.wh(nSim, h.name, h.curr, opNdays, ordNdays)
+  h$first.fa(nSim, f.name, f.curr, f.act, opNdays, f.ord)
+  h$first.ob(nSim, f.modes, f.shpSz, f.info)
+  h$first.wh(nSim, h.name, h.curr, opNdays, h.ord)
+  h$first.ib(nSim, h.modes, h.shpSz, h.info)
   
   return(h)
 }
@@ -105,8 +108,6 @@ gen.hub <- function(nSim, nm, curr, act, opNdays, ordNdays, modes, info = NA) {
 # 
 # h <- gen.hub(nSim, nm, curr, act, op, ord, modes)
 
-# 
-# hub <- HUB$new()
-# hub$first.fa(nSim, nm, curr, act, op, ord)
+
 
 
