@@ -1,7 +1,5 @@
 #### Transit Lane Reference Class
 
-library(triangle)
-
 ### Random numbers for transit generation
 
 #' Generate random numbers along a discrete triangular distribution
@@ -21,6 +19,7 @@ library(triangle)
 #' test2 <- gen.randT(1000, c(2, 4, 8, 3), info = 2, seed = 42)
 gen.randT <- function(nSim, modes, info = NA) {
   #  discrete triangle distribution random numbers
+  library(triangle)
   rTriNums <- function(num, min, max, mode) {
     temp <- round(rtriangle(num, min, max, mode))
     return(temp)
@@ -92,6 +91,13 @@ trans$methods(
   getDelivered = function() {
     return(delivered)
   },
+  getTransR = function(time, range) {
+    start <- ifelse((time - range) < 1, 1, (time - range + 1))
+    return(transit.time[start:time, ])
+  },
+  getTrans = function(time) {
+    return(transit.time[time, ])
+  },
   randTrans = function() {
     return(transit.time[sample(nrow(transit.time), 1), ])
   },
@@ -116,23 +122,36 @@ trans$methods(
     return(rt)
   },
   setITVolume = function(time) {
-    in.trns[time] <<- calcITVolume(time)
+    IT <- calcITVolume(time)
+    
+    in.trns[time] <<- sum(IT$vol)
   },
   getITVolume = function(time) {
     return(in.trns[time])
   },
   calcITVolume = function(time) {
-    dL <- !(getDelivered())
-    rL <- (getReleaseDate() > time)
+    r <- getReleaseDate()
     v <- getVolume()
-    vL <- (v > 0)
-    rt <- 0
     
+    dL <- !(getDelivered())
+    rL <- (r > time)
+    vL <- (v > 0)
+    
+    vol <- rep(0, 50)
+    rel <- vol
+    
+    k <- 0
     for (i in 1:time) {
       if (vL[i] & rL[i] & dL[i]) {
-        rt <- rt + v[i]
+        k <- k + 1
+        vol[k] <- v[i]
+        rel[k] <- (r[i] + sample(-3:3, 1))
       }
     }
+    vol <- vol[1:k]
+    rel <- rel[1:k]
+    
+    rt <- as.data.frame(cbind(vol, rel))
     return(rt)
   }
 )

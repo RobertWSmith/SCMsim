@@ -23,6 +23,7 @@ simDF <- function(inv, trans) {
   dfData <- as.data.frame(cbind(
     date = 1:nrow(rand.n),
     factory = inv$name,
+    region = inv$region,
     daily_inv = inv$current,
     in_transit = trans$in.trns,
     actual_dmd = inv$actual,
@@ -69,9 +70,9 @@ saveData <- function(inv, trans, hub, sim.name, quant) {
   
   dir.create(SIM.DIR)
   nm <- "raw_output.csv"
-  write.csv(dfSim, file = file.path(SIM.DIR, nm), quote = FALSE)
+  write.csv(dfSim, file = file.path(SIM.DIR, nm), quote = FALSE, row.names = FALSE)
   
-  return(SIM.DIR)
+  return(c(SIM.DIR, nm))
 }
 
 saveTrunc <- function(inv, trans, hub, sim.name, quant) {
@@ -96,7 +97,7 @@ saveTrunc <- function(inv, trans, hub, sim.name, quant) {
   SIM.DIR <- file.path(BASE.DIR, sim.name)
   
   nm <- "trunc_output.csv"
-  write.csv(dfTrnc, file = file.path(SIM.DIR, nm), quote = FALSE)
+  write.csv(dfTrnc, file = file.path(SIM.DIR, nm), quote = FALSE, row.names = FALSE)
 }
 
 #' Runs the simulation
@@ -108,10 +109,10 @@ saveTrunc <- function(inv, trans, hub, sim.name, quant) {
 #' @param qnt the quantile of transit time to consider
 #' @param bias the forecast bias to consider (0 is no bias, -1 is consistent overestimates, +1 is consistent underestimate)
 #' @param seed the random number seed for repeatability
-simulation <- function(DATA, nSim, dOpen, disrupt, qnt, bias, seed = NA) {
+simulation <- function(DATA, nSim, dOpen, disrupt, qnt, bias, amp, seed = NA, STRAT) {
   if (!is.na(seed)) set.seed(seed)
   
-  name <- paste0("OP", dOpen, " DAYS", nSim, " DISR", disrupt[1], " LEN", disrupt[2], " SL", (qnt * 100))
+  name <- paste0("STRAT ", STRAT, " OP", dOpen, " DAYS", nSim, " DISR", disrupt[1], " LEN", disrupt[2], " SL", (qnt * 100))
   
   #### Subsetting ####
   BMT.val <- as.matrix(DATA[((DATA[ ,1] == "Beaumont") & (DATA[ ,3] != "Lux Hub")), 4:ncol(DATA)], rownames.force = FALSE)
@@ -126,10 +127,35 @@ simulation <- function(DATA, nSim, dOpen, disrupt, qnt, bias, seed = NA) {
   
   #### Initialization Loop ####
   for (row in 1:nrow(BMT.val)) {
-    BMT.inv[[row]] <- gen.inv(nSim, BMT.nms[row,3], BMT.val[row,9], BMT.val[row,7:8], dOpen, BMT.val[row,11])
-    BMT.trns[[row]] <- gen.trans(nSim, BMT.val[row,1:6], BMT.val[row,12], BMT.val[row,13])
+    fac.name <- as.character(BMT.nms[row, 3])
+    fac.rgn <- as.character(BMT.nms[row, 2])
+    curr.inv <- as.numeric(BMT.val[row, 9]) * 2
+    act.dist <- as.numeric(BMT.val[row, 7:8])
+    ord.days <- as.numeric(BMT.val[row, 11])
+    modes <- as.numeric(BMT.val[row, 1:6])
+    ship.sz <- as.numeric(BMT.val[row, 12])
+    info.cycl <- as.numeric(BMT.val[row, 13])
+    
+    BMT.inv[[row]] <- gen.inv(nSim, fac.name, fac.rgn, curr.inv, act.dist, dOpen, ord.days, bias, amp, STRAT)
+    BMT.trns[[row]] <- gen.trans(nSim, modes, ship.sz, info.cycl)
   }
-  lux.hub <- gen.hub(nSim, LUX.nms[ ,3], LUX.val[ ,9], LUX.val[ ,7:8], dOpen, LUX.val[ ,11], LUX.val[ ,1:6], LUX.val[ ,12], LUX.val[ ,13])
+  
+  hub.nms <- as.character(LUX.nms[ ,3])
+  hub.rgn <- as.character(LUX.nms[ ,2])
+  hub.curr <- as.numeric(LUX.val[ ,9]) * 2
+  hub.actDist <- as.matrix(LUX.val[ ,7:8])
+  hub.ordDays <- as.numeric(LUX.val[ ,11])
+  hub.modes <- as.matrix(LUX.val[ ,1:6])
+  hub.shipSz <- as.numeric(LUX.val[ ,12])
+  hub.infoCycl <- as.numeric(LUX.val[ ,13])
+  
+  lux.hub <- gen.hub(nSim, hub.nms, hub.rgn, hub.curr, hub.actDist, dOpen, 
+                     hub.ordDays, hub.modes, hub.shipSz, bias, amp, hub.infoCycl, STRAT)
+  
+  #### freeing up memory ####
+  rm(list = c("fac.name", "fac.rgn", "curr.inv", "act.dist", "ord.days", "modes", "ship.sz", "info.cycl"))
+  rm(list = c("hub.nms", "hub.rgn", "hub.curr", "hub.actDist", "hub.ordDays", "hub.modes", "hub.shipSz", "hub.infoCycl"))
+  rm(list = c("BMT.val", "BMT.nms", "LUX", "LUX.val", "LUX.nms"))
   
   ####  SIMULATION LOOP  ####
   for (time in 1:nSim) {
@@ -141,14 +167,16 @@ simulation <- function(DATA, nSim, dOpen, disrupt, qnt, bias, seed = NA) {
   SIM.DIR <- saveData(BMT.inv, BMT.trns, lux.hub, name, qnt)
   saveTrunc(BMT.inv, BMT.trns, lux.hub, name, qnt)
   
-  # kills the batch if the files don't output correctly
-  stopifnot(file.exists(paste0(SIM.DIR, "/raw_output.csv")))
-  stopifnot(file.exists(paste0(SIM.DIR, "/trunc_output.csv")))
-  
   # to contain memory leaks
   rm(list = c("BMT.inv", "BMT.trns", "lux.hub"))
   
-  source(file.path(BASE.DIR, 'R', "Analysis.R"))
+  if (disrupt[2] <= 0) {
+    disrupt <- FALSE
+  }
+  
+  SIM.DIR[2] <- "trunc_output.csv"
+  
+  analysis((nSim - 500), SIM.DIR[1], SIM.DIR[2], DATA, disrupt)
 }
 
 

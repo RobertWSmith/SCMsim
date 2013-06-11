@@ -1,12 +1,10 @@
 ### Inventory Reference Class
 
-
-
-
 inv <- setRefClass(
   "inventory",
   fields = list(
     name = "character",
+    region = "character",
     current = "numeric",
     actual = "numeric",
     expected = "numeric",
@@ -17,17 +15,20 @@ inv <- setRefClass(
     DMDorder = "numeric",
     operating = "logical",
     ordering = "logical",
+    ord.pW = "numeric",
+    STRAT = "character",
     disruption = "logical"
   )
 )
 
 
 inv$methods(
-  first = function(nm, curr, expect, act, op, ord) {
+  first = function(nm, rgn, curr, expect, act, op, ord, ord.n, strat) {
     err <- (act - expect)
     err.sm <- cumsum(err)
     
     name <<- nm
+    region <<- rgn
     current <<- curr
     expected <<- expect
     actual <<- act
@@ -38,6 +39,8 @@ inv$methods(
     DMDorder <<- rep(0, length(curr))
     operating <<- op
     ordering <<- ord
+    STRAT <<- strat
+    ord.pW <<- ord.n
   },
   iterate = function(time) {
     if (getOperating(time)) {
@@ -52,11 +55,20 @@ inv$methods(
     updCurrent(time, trans$inbound(time))
   },
   order = function(time, trans, quant) {
+    if (STRAT == "PW2RWS") {
+      PW2RWS(time, trans, quant)
+    } else if (STRAT == "ROP") {
+      ROP(time, trans, quant)
+    } else if (STRAT == "USED") {
+      USED(time, trans)
+    }
+  },
+  PW2RWS = function(time, trans, quant) {
     trans$setITVolume(time) # no matter what, update in transit volume
     
     if (getOrdering(time)) {
       samples <- 50
-      #       the next few lines find an estimated transit time
+      # the next few lines find an estimated transit time
       estTT <- matrix(0, nrow = samples, ncol = ncol(trans$transit.time))
       for (i in 1:samples) {
         estTT[i, ] <- trans$randTrans()
@@ -68,12 +80,35 @@ inv$methods(
       setITorder(time, (getPipeTgt(time) - trans$getITVolume(time)))
       setDMDorder(time, (sum(getExpectedR((time), 7)) + sum(getErrorR(time, 7))))
       
-      shp.sz <- trans$getShipmentSize()
+      shpSZ <- trans$getShipmentSize()
       
-      order <- (ceiling((getITorder(time) + getDMDorder(time) - getCurrent(time)) / shp.sz)) * shp.sz
+      order <- (ceiling((getITorder(time) + getDMDorder(time) - getCurrent(time)) / shpSZ)) * shpSZ
       if (order <= 0) order <- 0
       trans$outbound(time, order)
     }
+  },
+  ROP = function(time, trans, quant) {
+    samples <- 50
+    trans.samp <- getTransSamp(time, samples, trans)
+    trans.q <- round(quantile(trans.samp, probs = quant))
+    dmd.q <- quantile(getExpectedR(time, samples), probs = quant)
+    
+    #     if (getCurrent(time) < trans.q * dmd.q ) {
+    #       
+    #     }
+    
+  },
+  USED = function(time, trans) {
+    shpSZ <- trans$getShipmentSize()
+    setDMDorder(time, getActual(time))
+    
+    if (getDMDorder(time) < shpSZ) {
+      order <- 0
+    } else {
+      order <- (ceiling(getDMDorder(time) / shpSZ)) * shpSZ
+    }
+    
+    trans$outbound(time, order)
   },
   getName = function() {
     return(name[1])
@@ -110,6 +145,28 @@ inv$methods(
     if (!is.na(getCurrent((time + 1)))) {
       current[(time+1)] <<- (getCurrent((time + 1))) + vol
     }
+  },
+  getTransSamp = function(time, range, trans) {
+    if (time > range) {
+      t <- apply(trans$getTransR(time, range), 1, sum, na.rm = TRUE)
+    } else {
+      t <- rep(0, range)
+      for (i in 1:range) {
+        t[i] <- sum(trans$randTrans(), na.rm = TRUE)
+      }
+    }
+    
+    ot <- ceiling(length(t) / ord.pW)
+    temp <- matrix(0, nrow = ot, ncol = ord.pW)
+    for (i in 1:ord.pW) {
+      temp[ ,i] <- seq(i, by = 7, length.out = ot)
+    }
+    temp <- as.numeric(temp)
+    smp <- sort(temp[1:length(t)], method = "quick")
+    
+    t <- t + smp
+    t <- diff(t)
+    return(t)
   },
   getExpectedR = function(time, range) {
     end <- ifelse((time + range) >= (length(expected)), (length(expected)), (time + range - 1))
@@ -159,37 +216,42 @@ gen.sched <- function(nOp, totSim) {
 #' @param opNdays is the nummber of days the factory works per week
 #' @param ordNdays is the number of days the factory places an order per week
 #' @param bias value for the expected demand bias, 0 corresponds to no bias, -1 is a consistent underestimate, 1 is a consistent overestimate
+#' @param amp value for the amplitude of forecast error (multiplicative)
 #' 
 #' @keyword inventory initializer
 #' 
 #' @example
 #' test <- gen.inv()
-gen.inv <- function(nSim, nm, curr, act, opNdays, ordNdays, bias = 0) {
+gen.inv <- function(nSim, nm, rgn, curr, act, opNdays, ordNdays, bias = c(0.5, 0.5), amp = 0.25, STRAT) {
   stopifnot(is.numeric(nSim) & (length(nSim) == 1))
   stopifnot(is.character(nm))
+  stopifnot(is.character(rgn))
   stopifnot(is.numeric(nSim) & (length(nSim) == 1))
   stopifnot(is.numeric(curr) & (length(curr) == 1))
   stopifnot(is.numeric(opNdays) & (length(opNdays) == 1))
   stopifnot(is.numeric(ordNdays) & (length(ordNdays) == 1))
   
   name <- rep(nm, nSim)
-  opNdays <- gen.sched(opNdays, nSim)
-  ordNdays <- gen.sched(ordNdays, nSim)
+  region <- rep(rgn, nSim)
+  op.v <- gen.sched(opNdays, nSim)
+  ord.v <- gen.sched(ordNdays, nSim)
   curr.inv <- c(curr, rep(0, length = (nSim - 1)))
   
   a.dmd <- sqrt((rnorm(nSim, act[1], act[2]))^2)
-  e <- runif(nSim, 0.5, 1.5) 
-  e.dmd <- a.dmd * e
+  e <- abs(rnorm(nSim, 0, act[2]))
+  e.bias <- sample(c(-1,1), size = nSim, replace = TRUE, prob = bias)
+  e.dmd <- a.dmd + (e * e.bias * amp)
+  
   
   for (i in 1:nSim) {
-    if (!opNdays[i]) {
+    if (!op.v[i]) {
       a.dmd[i] <- 0
       e.dmd[i] <- 0
     }
   }
   
   temp <- inv$new()
-  temp$first(name, curr.inv, e.dmd, a.dmd, opNdays, ordNdays)
+  temp$first(name, region, curr.inv, e.dmd, a.dmd, op.v, ord.v, ordNdays, STRAT)
   
   return(temp)
 }

@@ -7,6 +7,7 @@ source(file.path(BASE.DIR, 'R', "invRef.R"))
 source(file.path(BASE.DIR, 'R', "transRef.R"))
 source(file.path(BASE.DIR, 'R', "hubRef.R"))
 source(file.path(BASE.DIR, 'R', "simulation.R"))
+source(file.path(BASE.DIR, 'R', "Analysis.R"))
 
 DATA <- read.csv(file.path(BASE.DIR, 'data', "RF-BUD1207.csv"), 
                  colClasses = c(rep("character", 3), rep("numeric", 13)))
@@ -14,16 +15,16 @@ DATA <- read.csv(file.path(BASE.DIR, 'data', "RF-BUD1207.csv"),
 
 dOpen <- 6
 nSim <- 1500
-disrupt <- as.matrix(rbind(c(0,1), c(750,21), c(750,14), c(750,7)))
-bias <- 0
-qnt <- seq(0.1, 0.9, 0.1)
+disrupt <- c(1,0)
+bias <- c(0.5, 0.5)
+amp <- 0.25
+qnt <- 0.99
 seed <- NA
+STRAT <- "PW2RWS"
 
+#### STRAT can be PW2RWS, ROP or USED
+# PW2RWS is our strategy
+# ROP is reorder point strategy
+# USED is order what we used
 
-##### 36 total simulations #####
-for (DISR in 1:nrow(disrupt)) {
-  for (QUANT in 1:length(qnt)) {
-    simulation(DATA, nSim, dOpen, disrupt[DISR, ], qnt[QUANT], bias, seed)
-  }
-}
-
+simulation(DATA, nSim, dOpen, disrupt, qnt, bias, amp, seed, STRAT)
