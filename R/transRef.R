@@ -124,35 +124,29 @@ trans$methods(
   setITVolume = function(time) {
     IT <- calcITVolume(time)
     
-    in.trns[time] <<- sum(IT$vol)
+    in.trns[time] <<- sum(IT)
   },
   getITVolume = function(time) {
     return(in.trns[time])
   },
   calcITVolume = function(time) {
-    r <- getReleaseDate()
     v <- getVolume()
     
     dL <- !(getDelivered())
-    rL <- (r > time)
+    rL <- (getReleaseDate() > time)
     vL <- (v > 0)
     
     vol <- rep(0, 50)
-    rel <- vol
     
     k <- 0
     for (i in 1:time) {
       if (vL[i] & rL[i] & dL[i]) {
         k <- k + 1
         vol[k] <- v[i]
-        rel[k] <- (r[i] + sample(-3:3, 1))
       }
     }
-    vol <- vol[1:k]
-    rel <- rel[1:k]
     
-    rt <- as.data.frame(cbind(vol, rel))
-    return(rt)
+    return(vol[1:k])
   }
 )
 

@@ -55,17 +55,17 @@ inv$methods(
     updCurrent(time, trans$inbound(time))
   },
   order = function(time, trans, quant) {
+    trans$setITVolume(time) # no matter what, update in transit volume
+    
     if (STRAT == "PW2RWS") {
       PW2RWS(time, trans, quant)
     } else if (STRAT == "ROP") {
-      ROP(time, trans, quant)
+      ROP(time, trans)
     } else if (STRAT == "USED") {
       USED(time, trans)
     }
   },
   PW2RWS = function(time, trans, quant) {
-    trans$setITVolume(time) # no matter what, update in transit volume
-    
     if (getOrdering(time)) {
       samples <- 50
       # the next few lines find an estimated transit time
@@ -87,28 +87,41 @@ inv$methods(
       trans$outbound(time, order)
     }
   },
-  ROP = function(time, trans, quant) {
+  ROP = function(time, trans) {
     samples <- 50
-    trans.samp <- getTransSamp(time, samples, trans)
-    trans.q <- round(quantile(trans.samp, probs = quant))
-    dmd.q <- quantile(getExpectedR(time, samples), probs = quant)
     
-    #     if (getCurrent(time) < trans.q * dmd.q ) {
-    #       
-    #     }
-    
-  },
-  USED = function(time, trans) {
     shpSZ <- trans$getShipmentSize()
-    setDMDorder(time, getActual(time))
     
-    if (getDMDorder(time) < shpSZ) {
-      order <- 0
+    trans.samp <- getTransSamp(time, samples, trans)
+    trans.mn <- round(mean(trans.samp))
+    dmd.mn <- mean(getExpectedR(time, samples))
+    
+    min <- trans.mn * dmd.mn * 0.75
+    max <- trans.mn * dmd.mn
+    
+    if (getCurrent(time) < min) {
+      order <- max - getCurrent(time)
+      order <- (ceiling(order / shpSZ)) * shpSZ
     } else {
-      order <- (ceiling(getDMDorder(time) / shpSZ)) * shpSZ
+      order <- 0
     }
     
     trans$outbound(time, order)
+  },
+  USED = function(time, trans) {
+    shpSZ <- trans$getShipmentSize()
+    
+    if (time > 2) {
+      setDMDorder(time, getActual(time) + getDMDorder((time - 1)))
+      today <- getDMDorder(time)
+    } else {
+      today <- 0
+    }
+    
+    if (today > shpSZ) {
+      trans$outbound(time, shpSZ)
+      setDMDorder(time, (getDMDorder(time) - shpSZ))
+    }
   },
   getName = function() {
     return(name[1])
@@ -121,6 +134,10 @@ inv$methods(
   },
   getDMDorder = function(time) {
     return(DMDorder[time])
+  },
+  getDMDorderR = function(time, range) {
+    start <- ifelse((time - range) < 1, 1, (time - range + 1))
+    return(DMDorder[start:time])
   },
   setDMDorder = function(time, vol) {
     DMDorder[time] <<- vol

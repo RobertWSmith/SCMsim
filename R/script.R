@@ -18,9 +18,9 @@ nSim <- 1500
 disrupt <- c(1,0)
 bias <- c(0.5, 0.5)
 amp <- 0.25
-qnt <- 0.99
+qnt <- 0.95
 seed <- NA
-STRAT <- "PW2RWS"
+STRAT <- "ROP"
 
 #### STRAT can be PW2RWS, ROP or USED
 # PW2RWS is our strategy
