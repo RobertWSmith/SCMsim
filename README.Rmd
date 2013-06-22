@@ -6,7 +6,7 @@ This project is intended to run a supply chain simulation for raw materials. The
 Objects
 ------------------------------
 
-The main objects within the simulation are Raference Objects, and are in seperate files within the /R directory.
+The main objects within the simulation are Reference Objects, and are in separate files within the /R directory.
 * Inventory Object, invRef.R
 * Transit Object, transRef.R
 * Hub Object, hubRef.R
@@ -14,7 +14,7 @@ The main objects within the simulation are Raference Objects, and are in seperat
 Functions
 -----------------------------
 
-The main funcitons that users will want to call are within the simulation.R file
+The main functions that users will want to call are within the simulation.R file
 * simulate takes a inventory class and transit class as arguments and runs the basic simulation functions over one day
 * simulate.hub take a hub class as its argument and simulates one day for the hub and customer factories
 * simulation takes the predefined input, breaks it apart as appropriate, initializes and runs the simulation
