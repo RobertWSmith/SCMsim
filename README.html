@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<!-- saved from url=(0014)about:internet -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>SCMsim ReadMe</title>
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 12px;
+   margin: 8px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 { 
+   font-size:2.2em; 
+}
+
+h2 { 
+   font-size:1.8em; 
+}
+
+h3 { 
+   font-size:1.4em; 
+}
+
+h4 { 
+   font-size:1.0em; 
+}
+
+h5 { 
+   font-size:0.9em; 
+}
+
+h6 { 
+   font-size:0.8em; 
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre {	
+   margin-top: 0;
+   max-width: 95%;
+   border: 1px solid #ccc;
+   white-space: pre-wrap;
+}
+
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code.r, code.cpp {
+   background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * { 
+      background: transparent !important; 
+      color: black !important; 
+      filter:none !important; 
+      -ms-filter: none !important; 
+   }
+
+   body { 
+      font-size:12pt; 
+      max-width:100%; 
+   }
+       
+   a, a:visited { 
+      text-decoration: underline; 
+   }
+
+   hr { 
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote { 
+      padding-right: 1em; 
+      page-break-inside: avoid; 
+   }
+
+   tr, img { 
+      page-break-inside: avoid; 
+   }
+
+   img { 
+      max-width: 100% !important; 
+   }
+
+   @page :left { 
+      margin: 15mm 20mm 15mm 10mm; 
+   }
+     
+   @page :right { 
+      margin: 15mm 10mm 15mm 20mm; 
+   }
+
+   p, h2, h3 { 
+      orphans: 3; widows: 3; 
+   }
+
+   h2, h3 { 
+      page-break-after: avoid; 
+   }
+}
+
+</style>
+
+
+
+
+
+</head>
+
+<body>
+<h1>SCMsim ReadMe</h1>
+
+<p>This project is intended to run a supply chain simulation for raw materials. The end user will only be required to run the &#39;script.R&#39; file within the /R directory. </p>
+
+<h2>Objects</h2>
+
+<p>The main objects within the simulation are Raference Objects, and are in seperate files within the /R directory.</p>
+
+<ul>
+<li>Inventory Object, invRef.R</li>
+<li>Transit Object, transRef.R</li>
+<li>Hub Object, hubRef.R</li>
+</ul>
+
+<h2>Functions</h2>
+
+<p>The main funcitons that users will want to call are within the simulation.R file</p>
+
+<ul>
+<li>simulate takes a inventory class and transit class as arguments and runs the basic simulation functions over one day</li>
+<li>simulate.hub take a hub class as its argument and simulates one day for the hub and customer factories</li>
+<li>simulation takes the predefined input, breaks it apart as appropriate, initializes and runs the simulation</li>
+</ul>
+
+<p>In general, this has been written to run on any machine that has R installed, but may encounter errors. If you encounter an error, please email <rob_smith@goodyear.com> and include the call to traceback() to aide in fixing the issue.</p>
+
+<p>This simulation is currently in development, changes may be occur at any time. Please check back frequently for the most up to date code.</p>
+
+</body>
+
+</html>
+
