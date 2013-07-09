@@ -8,6 +8,8 @@ source(file.path(BASE.DIR, 'R', "transRef.R"))
 source(file.path(BASE.DIR, 'R', "hubRef.R"))
 source(file.path(BASE.DIR, 'R', "simulation.R"))
 source(file.path(BASE.DIR, 'R', "Analysis.R"))
+source(file.path(BASE.DIR, 'R', "simulationFunctions.R"))
+source(file.path(BASE.DIR, 'R', "analysisFunctions.R"))
 
 DATA <- read.csv(file.path(BASE.DIR, 'data', "RF-BUD1207.csv"), 
                  colClasses = c(rep("character", 3), rep("numeric", 13)))
@@ -28,3 +30,5 @@ STRAT <- "ROP"
 # USED is order what we used
 
 simulation(DATA, nSim, dOpen, disrupt, qnt, bias, amp, seed, STRAT)
+
+

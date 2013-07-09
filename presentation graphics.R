@@ -1,8 +1,10 @@
 library(ggplot2)
 library(scales)
+library(triangle)
+library(knitr)
 
 sample.random.walk <- function() {
-  desc.data <- read.csv("C:\\Users\\a421356\\R-GitHub\\SCMsim\\data\\RF-BUD1207.csv")
+  desc.data <- read.csv("C:/Users/a421356/R-GitHub/SCMsim/data/RF-BUD1207.csv")
   
   #### simulated random walk ####
   
@@ -34,70 +36,87 @@ sample.random.walk <- function() {
   print(
     BRZ.example + geom_line() + 
       labs(list(title ="Simulated Daily Demand Random Walk - Lawton Factory", 
-                x = "Simulation Days", y = "Daily Demand (kgs.)")) +
+                x = "Simulation Days", y = "Daily Demand (kg)")) +
       scale_y_continuous(labels = comma)
   )
 }
 
 sample.transit.time <- function() {
-  desc.data <- read.csv("C:\\Users\\a421356\\R-GitHub\\SCMsim\\data\\RF-BUD1207.csv")
+  desc.data <- read.csv("C:/Users/a421356/R-GitHub/SCMsim/data/RF-BUD1207.csv")
   
   americana.modes <- as.numeric(subset(desc.data, DESTINATION == "Lawton", select = c(4:9)))
   americana.trans <- apply(gen.randT(1000, americana.modes, NA), 1, sum)
   americana <- ggplot(as.data.frame(cbind(
     date = 1:1000, transit_time = americana.trans
-      )), aes(x = transit_time, y = ..density..))
+  )), aes(x = transit_time, y = ..density..))
   
   print(
     americana + geom_histogram(binwidth = 1) + 
-#       stat_density(geom = "line", col = "red") + 
+      #       stat_density(geom = "line", col = "orange") + 
       labs(list(title ="Simulated Transit Times - Lawton Factory", 
-                x = "Transit Time (days)", y = "Probability Density"))
-    )
+                x = "Transit Time (Days)", y = "Probability Density"))
+  )
 }
 
-sample.output.graphics <- function(graph) {
+sample.output.graphics <- function(graph, rating) {
   stopifnot(is.numeric(graph))
   stopifnot(graph >=1 | graph <= 3)
-  input.data <- read.csv("C:\\Users\\a421356\\R-GitHub\\SCMsim\\data\\BUD1207.csv")
-  akron.input <- as.numeric(subset(input.data, DESTINATION == "Birmingham UK", select = c(12:13)))
+  input.data <- read.csv("C:/Users/a421356/R-GitHub/SCMsim/data/BUD1207.csv")
+  factory.input <- as.numeric(subset(input.data, DESTINATION == "Pulandian", select = c(12:13)))
   
-  desc.data <- read.csv("C:\\Users\\a421356\\Documents\\Operations\\Raw Material\\Simulation Output\\STRAT PW2RWS OP6 DAYS1500 DISR1 LEN0 SL1\\trunc_output.csv")
-  akron.data <- subset(desc.data, factory == "Birmingham UK")
+  if (rating == "good") {
+    input <- "C:/Users/a421356/Documents/Operations/Raw Material/Simulation Output/STRAT PW2RWS OP6 DAYS1500 DISR1 LEN0 SL95/trunc_output.csv"
+  } else if (rating == "poor") {
+    input <- "C:/Users/a421356/Documents/Operations/Raw Material/Simulation Output/STRAT PW2RWS OP6 DAYS1500 DISR1 LEN0 SL1/trunc_output.csv"
+  }
   
-  akron.actuals <- subset(akron.data, factory_op == TRUE, select = c(1,4:6,18:24))
-  plot.data <- ggplot(akron.actuals)
+  desc.data <- read.csv(input)
+  desc.data <- as.data.frame(
+    cbind(
+      desc.data,
+      total_inv = desc.data$daily_inv + desc.data$in_transit
+    ))
+  factory.data <- subset(desc.data, factory == "Pulandian")
+  
+  factory.actuals <- subset(factory.data, factory_op == TRUE, select = c(1,4:6,18:25))
+  plot.data <- ggplot(factory.actuals)
   
   if (graph == 1) {
     print(
       plot.data + geom_point(aes(x = date, y = daily_inv)) + 
-        stat_smooth(aes(x = date, y = daily_inv), geom = "line", col = "red") + 
-        geom_hline(yintercept = akron.input[1], linetype = "dashed", col = "blue") + 
-        labs(list(title = paste("Daily On-Hand Inventory -", "Birmingham"), 
-                  x = "Simulation Days", y = "Daily On-Hand Inventory (kgs.)")) +
-        scale_y_continuous(labels = comma, 
-                           limits = c(0, max(as.numeric(c(akron.actuals$daily_inv, akron.input[1]))))) +
-        xlim(1000, 1100)
+        stat_smooth(aes(x = date, y = daily_inv), data = factory.data, geom = "line", col = "orange") + 
+        geom_hline(yintercept = factory.input[1], linetype = "dashed", col = "blue") + 
+        labs(list(title = paste("Daily On-Hand Inventory -", "Pulandian"), 
+                  x = "Simulation Days", y = "Daily On-Hand Inventory (kg)")) +
+        scale_y_continuous(labels = comma, limits = c(0, 110000)) + 
+        scale_x_continuous(labels = comma, limits = c(1000, 1100))
     )
   } else if (graph == 2) {
     print(
       plot.data + geom_point(aes(x = date, y = in_transit)) + 
-        stat_smooth(aes(x = date, y = in_transit), geom = "line", col = "red") + 
-        geom_hline(yintercept = akron.input[2], linetype = "dashed", col = "blue") + 
-        labs(list(title = paste("Daily In-Transit Inventory -", "Birmingham"), 
-                  x = "Simulation Days", y = "Daily In-Transit Inventory (kgs.)")) +
-        scale_y_continuous(labels = comma, 
-                           limits = c(0, max(as.numeric(c(akron.actuals$in_transit, akron.input[2]))))) +
-        xlim(1000, 1100)
+        stat_smooth(aes(x = date, y = in_transit), data = factory.data, geom = "line", col = "orange") + 
+        geom_hline(yintercept = factory.input[2], linetype = "dashed", col = "blue") + 
+        labs(list(title = paste("Daily In-Transit Inventory -", "Pulandian"), 
+                  x = "Simulation Days", y = "Daily In-Transit Inventory (kg)")) +
+        scale_y_continuous(labels = comma, limits = c(0, 215000)) + 
+        scale_x_continuous(labels = comma, limits = c(1000, 1100))
     )
-        
-  } else if (graph == 3) {
     
+  } else if (graph == 3) {
+    total_input <- sum(factory.input)
+    
+    print(
+      plot.data + geom_point(aes(x = date, y = total_inv)) + 
+        stat_smooth(aes(x = date, y = total_inv), data = factory.data, geom = "line", col = "orange") + 
+        geom_hline(yintercept = total_input, linetype = "dashed", col = "blue") + 
+        labs(list(title = paste("Daily Total FOB Inventory -", "Pulandian"), 
+                  x = "Simulation Days", y = "Daily Inventory (kg)")) +
+        scale_y_continuous(labels = comma, limits = c(0, 300000)) + 
+        scale_x_continuous(labels = comma, limits = c(1000, 1100))
+    )
   }
   
 }
-
-
 
 
 
@@ -151,4 +170,6 @@ gen.randT <- function(sim.days, modes, info = NA) {
   
   return(rng)
 }
+
+
 

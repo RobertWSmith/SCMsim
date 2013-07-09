@@ -1,0 +1,61 @@
+```{r import_data, results='hide', echo=FALSE, message=FALSE, warning=FALSE, cache=FALSE}
+opts_chunk$set(dev='CairoSVG',fig.width=10,fig.height=6)
+
+library(xtable)
+library(ggplot2)
+library(scales)
+
+source('C:/Users/a421356/R-GitHub/SCMsim/R/analysisFunctions.R')
+
+data.dir <- "C:/Users/a421356/Documents/Operations/Raw Material/Simulation Output"
+import.dir <- "STRAT PW2RWS OP6 DAYS1500 DISR1 LEN0 SL100"
+```
+
+# Simulation Output 
+
+
+```{r load_data, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='asis', comment=NA}
+cat("\n\n")
+import.dir
+cat("\n\n")
+
+simulation.data <- read.csv(file.path(data.dir, import.dir, "raw_output.csv"))
+simulation.data$region <- as.factor(
+  ifelse(is.na(as.character(simulation.data$region)), "NA", as.character(simulation.data$region))
+  )
+simulation.data <- simulation.data[order(simulation.data$region, simulation.data$factory),]
+
+comparison.data <- read.csv(file.path("C:/Users/a421356/R-GitHub/SCMsim/data", "RF-BUD1207.csv"))
+comparison.data$REGION <- as.factor(
+  ifelse(is.na(as.character(comparison.data$REGION)), "NA", as.character(comparison.data$REGION))
+  )
+comparison.data <- comparison.data[order(comparison.data$REGION, comparison.data$DESTINATION),]
+
+factory.names <- as.data.frame(cbind(
+  factory = as.character(comparison.data$DESTINATION),
+  region = as.character(comparison.data$REGION)))
+last.region <- "none"
+
+cat("\n\n# ", "Global", "\n\n")
+
+global.data(simulation.data, comparison.data, range = 500:1500)
+
+for (i in 1:nrow(factory.names)) {
+  
+  if (as.character(factory.names$region[i]) != last.region) {
+    last.region <- as.character(factory.names$region[1])
+    
+    cat("\n\n## ", last.region)
+    
+    region.data(simulation.data, comparison.data, last.region, 500:1500)
+    }
+  
+  cat("\n\n")
+  cat("# ", last.region, " - ", as.character(factory.names$factory[i]))
+  cat("\n\n")
+  
+  inventory.data(simulation.data, comparison.data, as.character(factory.names$factory[i]), 500:1500)
+  }
+```
+
+
